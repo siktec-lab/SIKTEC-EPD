@@ -13,7 +13,7 @@
 
 namespace SIKtec {
 
-#if defined(SIKTEC_EPD_DEBUG) || defined(SIKTEC_EPD_DEBUG_PIXELS) || defined(SIKTEC_EPD_DEBUG_SRAM_READ_WRITE) || defined(SIKTEC_EPD_DEBUG_COMMAND_LISTS) 
+#if SIKTEC_EPD_DEBUG || SIKTEC_EPD_DEBUG_PIXELS || SIKTEC_EPD_DEBUG_SRAM || SIKTEC_EPD_DEBUG_COMMAND_LISTS
     char debug_message[150];
     const int debug_message_len = sizeof( debug_message ) / sizeof( debug_message[0] );
 #endif
@@ -95,7 +95,7 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, int8_t spi
     this->color_buffer      = nullptr;
     this->black_buffer      = nullptr;
 
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.println("initialized SIKTEC_EPD");
     #endif
 }
@@ -172,7 +172,7 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *
     this->color_buffer      = nullptr;
     this->black_buffer      = nullptr;
 
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.println("initialized SIKTEC_EPD");
     #endif
 }
@@ -230,7 +230,7 @@ epd_sram_space_t SIKTEC_EPD::getFreeSramSpace(uint32_t assumeTotalSizeKib)  {
 */
 void SIKTEC_EPD::begin(bool reset) {
     
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.println("EPD Begin procedure");
     #endif
     //Set buffers:
@@ -264,12 +264,12 @@ void SIKTEC_EPD::begin(bool reset) {
 */
 void SIKTEC_EPD::hardwareResetEPD() {
     
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.print("Performing Hardware Reset - ");
     #endif
 
     if (this->pins.rst >= 0) {
-        #ifdef SIKTEC_EPD_DEBUG
+        #if SIKTEC_EPD_DEBUG
             Serial.print("Starting...");
         #endif
         // Setup reset pin direction
@@ -285,12 +285,12 @@ void SIKTEC_EPD::hardwareResetEPD() {
         digitalWrite(this->pins.rst, HIGH);
         delay(10);
     }
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         else {
             Serial.print("Skipping...");
         }
     #endif
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.println("Done!");
     #endif
 }
@@ -325,21 +325,19 @@ void SIKTEC_EPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
         black_pBuf = &black_c;
         color_c = this->sram->read8(pixel.sram_color);
         color_pBuf = &color_c;
-        #ifdef SIKTEC_EPD_DEBUG_PIXELS
-            sprintf(debug_message, "Draw Pixel[%u,%u, C%d] -> Address[B %u:%#X, C %u::%#X] ", x, y, color, pixel.sram_black, pixel.sram_black, pixel.sram_color, pixel.sram_color);
+        #if SIKTEC_EPD_DEBUG_PIXELS
+            PRINT_DEBUG_BUFFER("Draw Pixel[%u,%u, C%d] -> Address[B %u:%#X, C %u::%#X] ", x, y, color, pixel.sram_black, pixel.sram_black, pixel.sram_color, pixel.sram_color);
         #endif
 
     } else {
 
         color_pBuf = pixel.ram_color;
         black_pBuf = pixel.ram_black;
-        #ifdef SIKTEC_EPD_DEBUG_PIXELS
-            sprintf(debug_message, "Draw Pixel[%u,%u, C%d] -> Address[B %u:%#X, C %u::%#X] ", x, y, color, pixel.ram_black, pixel.ram_black, pixel.ram_color, pixel.ram_color);
+        #if SIKTEC_EPD_DEBUG_PIXELS
+            PRINT_DEBUG_BUFFER("Draw Pixel[%u,%u, C%d] -> Address[B %u:%#X, C %u::%#X] ", x, y, color, pixel.ram_black, pixel.ram_black, pixel.ram_color, pixel.ram_color);
         #endif
     }
-    #ifdef SIKTEC_EPD_DEBUG_PIXELS
-        Serial.print(debug_message);
-    #endif
+
     bool black_bit = this->layer_colors[color] & 0x1; //01
     bool color_bit = this->layer_colors[color] & 0x2; //10
 
@@ -355,9 +353,8 @@ void SIKTEC_EPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
         *black_pBuf |= (1 << (7 - pixel.ry % 8));
     }
 
-    #ifdef SIKTEC_EPD_DEBUG_PIXELS
-        sprintf(debug_message, "-> Write[B %u, C %u]\n", *black_pBuf, *color_pBuf);
-        Serial.print(debug_message);
+    #if SIKTEC_EPD_DEBUG_PIXELS
+        PRINT_DEBUG_BUFFER("-> Write[B %u, C %u]\n", *black_pBuf, *color_pBuf);
     #endif
 
     //If its SRAM save it:
@@ -475,11 +472,10 @@ void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y, Stream *SerialPort
             black_c = *pixel.ram_black;
             color_c = *pixel.ram_color;
         }
-        sprintf(pbuf, "PIXEL[%u,%u]-TRANS[%u,%u] B %u::0x%#X C %u::0x%#X \n", x, y, pixel.rx, pixel.ry, black_c, black_c, color_c, color_c);
+        PRINT_DEBUG_BUFFER("PIXEL[%u,%u]-TRANS[%u,%u] B %u::0x%#X C %u::0x%#X \n", x, y, pixel.rx, pixel.ry, black_c, black_c, color_c, color_c);
     } else {
-        sprintf(pbuf, "PIXEL[%u,%u]-OUT OF BOUNDS", x, y);
+        PRINT_DEBUG_BUFFER("PIXEL[%u,%u]-OUT OF BOUNDS", x, y);
     }
-    SerialPort->print(pbuf);
 }
 
 /**
@@ -545,10 +541,9 @@ void SIKTEC_EPD::writeSRAMFramebufferToEPD(uint16_t SRAM_buffer_addr, uint32_t b
     //get the transmitted data from SRAM and transfer it to epd simultaneously:
     this->_spi->beginTransaction();
     for (uint32_t i = 0; i < buffer_size; i++) {
-        #ifdef SIKTEC_EPD_DEBUG_SRAM_READ_WRITE
+        #if SIKTEC_EPD_DEBUG_SRAM
             if (c != 255 && c != 0 && i < SIKTEC_EPD_DEBUG_SRAM_READ_WRITE) { //Debug only none white pixels:
-                sprintf(debug_message, "EPD RAM Write [%u:%#X] -> %u:%#X \n", SRAM_buffer_addr + i, SRAM_buffer_addr + i, c, c);
-                Serial.print(debug_message);
+                PRINT_DEBUG_BUFFER("EPD RAM Write [%u:%#X] -> %u:%#X \n", SRAM_buffer_addr + i, SRAM_buffer_addr + i, c, c);
             }
         #endif
         if (invertdata) {
@@ -624,7 +619,7 @@ void SIKTEC_EPD::setLut(const uint8_t * lut, bool partial) {
  */
 void SIKTEC_EPD::display(bool sleep) {
 
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.println("Refreshing Display, Writing data.");
     #endif
 
@@ -636,15 +631,13 @@ void SIKTEC_EPD::display(bool sleep) {
 
     //Write buffer1 using sram or mem buffer:
     if (this->use_sram) {
-        #ifdef SIKTEC_EPD_DEBUG
-            sprintf(debug_message, "Write SRAM buffer1 to EPD > address: %#X size: %u \n", this->buffer1_addr, this->buffer1_size);
-            Serial.print(debug_message);
+        #if SIKTEC_EPD_DEBUG
+            PRINT_DEBUG_BUFFER("Write SRAM buffer1 to EPD > address: %#X size: %u \n", this->buffer1_addr, this->buffer1_size);
         #endif
         this->writeSRAMFramebufferToEPD(this->buffer1_addr, this->buffer1_size, 0);
     } else {
-        #ifdef SIKTEC_EPD_DEBUG
-            sprintf(debug_message, "Write RAM buffer1 to EPD > address: %#X size: %u \n", (uint32_t)this->buffer1, this->buffer1_size);
-            Serial.print(debug_message);
+        #if SIKTEC_EPD_DEBUG
+            PRINT_DEBUG_BUFFER("Write RAM buffer1 to EPD > address: %#X size: %u \n", (uint32_t)this->buffer1, this->buffer1_size);
         #endif
         this->writeRAMFramebufferToEPD(this->buffer1, this->buffer1_size, 0);
     }
@@ -655,32 +648,29 @@ void SIKTEC_EPD::display(bool sleep) {
         // Set X & Y ram address: 
         this->setRAMAddress(0, 0);
         if (this->use_sram) {
-            #ifdef SIKTEC_EPD_DEBUG
-                sprintf(debug_message, "Write SRAM buffer2 to EPD > address: %#X size: %u \n", this->buffer2_addr, this->buffer2_size);
-                Serial.print(debug_message);
+            #if SIKTEC_EPD_DEBUG
+                PRINT_DEBUG_BUFFER("Write SRAM buffer2 to EPD > address: %#X size: %u \n", this->buffer2_addr, this->buffer2_size);
             #endif
             this->writeSRAMFramebufferToEPD(this->buffer2_addr, this->buffer2_size, 1);
         } else {
-            #ifdef SIKTEC_EPD_DEBUG
-                sprintf(debug_message, "Write RAM buffer2 to EPD > address: %#X size: %u \n", (uint32_t)this->buffer2, this->buffer2_size);
-                Serial.print(debug_message);
+            #if SIKTEC_EPD_DEBUG
+                PRINT_DEBUG_BUFFER("Write RAM buffer2 to EPD > address: %#X size: %u \n", (uint32_t)this->buffer2, this->buffer2_size);
             #endif
             this->writeRAMFramebufferToEPD(this->buffer2, this->buffer2_size, 1);
         }
     }
 
     //Finished - update the screen now:
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         Serial.print("Updating Screen....");
         float timer = (float)millis();
     #endif
     
     this->update();
     
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         timer = ((float)millis() - timer) / 1000;
-        sprintf(debug_message, "Done in %.2f seconds\n", timer);
-        Serial.print(debug_message);
+        PRINT_DEBUG_BUFFER("Done in %.2f seconds\n", timer);
     #endif
 
     // this->partialsSinceLastFullUpdate = 0; //TODO -> remember we need to handle the partial count before full refresh
@@ -754,7 +744,7 @@ void SIKTEC_EPD::clearBuffer() {
         } else {
             this->sram->erase(this->blackbuffer_addr, this->buffer1_size, 0x00);
         }
-        #ifdef SIKTEC_EPD_DEBUG
+        #if SIKTEC_EPD_DEBUG
             Serial.println("Cleared black buffer.");
         #endif
         if (this->colorInverted) {
@@ -762,7 +752,7 @@ void SIKTEC_EPD::clearBuffer() {
         } else {
             this->sram->erase(this->colorbuffer_addr, this->buffer2_size, 0x00);
         }
-        #ifdef SIKTEC_EPD_DEBUG
+        #if SIKTEC_EPD_DEBUG
             Serial.println("Cleared color buffer.");
         #endif
     } else {
@@ -772,7 +762,7 @@ void SIKTEC_EPD::clearBuffer() {
             } else {
                 memset(this->black_buffer, 0x00, this->buffer1_size);
             }
-            #ifdef SIKTEC_EPD_DEBUG
+            #if SIKTEC_EPD_DEBUG
                 Serial.println("Cleared black buffer.");
             #endif
         }
@@ -782,7 +772,7 @@ void SIKTEC_EPD::clearBuffer() {
             } else {
                 memset(this->color_buffer, 0x00, this->buffer2_size);
             }
-            #ifdef SIKTEC_EPD_DEBUG
+            #if SIKTEC_EPD_DEBUG
                 Serial.println("Cleared color buffer.");
             #endif
         }
@@ -816,7 +806,7 @@ void SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
     //its fixed in size and hopefully large enough lut block are usually 42 -> 57 
     uint8_t buf[64];
 
-    #ifdef SIKTEC_EPD_DEBUG_COMMAND_LISTS
+    #if SIKTEC_EPD_DEBUG_COMMAND_LISTS
         Serial.println("Starting command sequence:");
     #endif
 
@@ -841,15 +831,14 @@ void SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
             init_code++;
         }
 
-        #ifdef SIKTEC_EPD_DEBUG_COMMAND_LISTS
-            sprintf(debug_message, "  -> Sending EPD Command: %#X args %u \n", cmd, num_args);
-            Serial.print(debug_message);
+        #if SIKTEC_EPD_DEBUG_COMMAND_LISTS
+            PRINT_DEBUG_BUFFER("  -> Sending EPD Command: %#X args %u \n", cmd, num_args);
         #endif
         //Send command & data:
         this->EPD_command(cmd, buf, num_args);
     }
 
-    #ifdef SIKTEC_EPD_DEBUG_COMMAND_LISTS
+    #if SIKTEC_EPD_DEBUG_COMMAND_LISTS
         Serial.println("Finished Sending command sequence.");
     #endif
 }
@@ -1030,7 +1019,7 @@ void SIKTEC_EPD::_display_buffer(uint16_t from_addr, uint8_t cols, int length, S
 }
 
 
-#ifdef SIKTEC_EPD_DEBUG
+#if SIKTEC_EPD_DEBUG
     /**
      * @brief Scans the SRAM chip to try and calculate the total RAM size
      *        Will work only with SEQUENTIAL MODE.

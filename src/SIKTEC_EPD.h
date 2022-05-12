@@ -38,9 +38,26 @@
 // DEBUGGING FLAGS:
 //------------------------------------------------------------------------//
 // #define SIKTEC_EPD_DEBUG
-// #define SIKTEC_EPD_DEBUG_COMMAND_LISTS
-// #define SIKTEC_EPD_DEBUG_PIXELS
-// #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
+// #define SIKTEC_EPD_DEBUG_COMMAND_LISTS 1
+// #define SIKTEC_EPD_DEBUG_PIXELS 1
+// #SIKTEC_EPD_DEBUG_SRAM 1
+#ifndef SIKTEC_EPD_DEBUG 
+    #define SIKTEC_EPD_DEBUG 0
+#endif
+#ifndef SIKTEC_EPD_DEBUG_COMMAND_LISTS 
+    #define SIKTEC_EPD_DEBUG_COMMAND_LISTS 0
+#endif
+#ifndef SIKTEC_EPD_DEBUG_PIXELS 
+    #define SIKTEC_EPD_DEBUG_PIXELS 0
+#endif
+#ifndef SIKTEC_EPD_DEBUG_SRAM 
+    #define SIKTEC_EPD_DEBUG_SRAM 0
+#endif
+#define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
+
+#define PRINT_DEBUG_BUFFER(template, ...) \
+    sprintf(debug_message, template __VA_OPT__(,) __VA_ARGS__); \
+    Serial.print(debug_message)
 
 //------------------------------------------------------------------------//
 // INCLUDES:
@@ -152,7 +169,7 @@ public:
 
     epd_sram_space_t getFreeSramSpace(uint32_t assumeTotalSizeKib = 256);
 
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         uint32_t analyzeSRAMsize(const bool print, Stream *SerialPort = &Serial);
     #endif
 

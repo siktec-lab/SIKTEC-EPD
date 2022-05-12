@@ -122,14 +122,12 @@ private:
         this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
         this->buffer2_size = this->buffer1_size;
 
-        #ifdef SIKTEC_EPD_DEBUG
-            sprintf(
-                debug_message, 
+        #if SIKTEC_EPD_DEBUG
+            PRINT_DEBUG_BUFFER(
                 "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
                 this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
                 this->buffer1_size, this->buffer2_size
             );
-            Serial.print(debug_message);
         #endif
 
         if (this->use_sram) {
@@ -137,7 +135,7 @@ private:
             this->buffer1_addr = 0;
             this->buffer2_addr = this->buffer1_size;
 
-            #ifdef SIKTEC_EPD_DEBUG
+            #if SIKTEC_EPD_DEBUG
                 Serial.println("Allocating on SRAM");
             #endif
 
@@ -145,7 +143,7 @@ private:
             this->buffer1 = (uint8_t *)malloc(this->buffer1_size); // 15,000 bytes
             this->buffer2 = (uint8_t *)malloc(this->buffer2_size); // 15,000 bytes
 
-            #ifdef SIKTEC_EPD_DEBUG
+            #if SIKTEC_EPD_DEBUG
                 Serial.println("Allocating on RAM");
             #endif
         }
@@ -211,7 +209,7 @@ public:
      */
     inline void powerUp()  {
 
-        #ifdef SIKTEC_EPD_DEBUG
+        #if SIKTEC_EPD_DEBUG
             Serial.println("Powering Up display");
         #endif
 
@@ -260,7 +258,7 @@ public:
      */
     inline void powerDown() {
         
-        #ifdef SIKTEC_EPD_DEBUG
+        #if SIKTEC_EPD_DEBUG
             Serial.println("Powering Down display");
         #endif
 

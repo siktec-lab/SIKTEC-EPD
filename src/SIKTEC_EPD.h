@@ -1,11 +1,14 @@
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.1
+// Release Version : 1.0.2
 // Creation Date: 2022-04-12
 // Copyright 2022, SIKTEC.
 // 
 /******************************************************************************/
 /*****************************      NOTES       *******************************
+ * ePaper / eInk display driver to easily integrate SIKTEC displays.
+ * GFX compatible with optional external SRAM use.
+ * Supported drivers / SIKTEC boards:
     -> UC8276 -> IL0398 SIKTEC_EPD_G4
     -> UC8276 -> SIKTEC_EPD_3CU
     -> SSD1619 -> SIKTEC_EPD_3CS
@@ -17,6 +20,15 @@
     -> 3 drivers implemented.
     -> SRAM support - 23K256-I/SN implements SIKTEC_SRAM Library.
     -> MONO, TRICOLOR, 4GRAY Modes support.
+1.0.2:
+    -> Improved pixel draw method.
+    -> Sram now gives extra space for additional user space buffer.
+    -> Improved drivers layout - all init lut and instructions moved to a header file.
+    -> Improved lut for 4gray G4 board.
+    -> Improved init code for 3CS board.
+    -> Fixed Arduino DUE specific problems.
+    -> Added pixel debug methods. 
+    -> MONO, TRICOLOR, 4GRAY Modes support.
 *******************************************************************************/
 
 /**  @file SIKTEC_EPD.h */
@@ -26,8 +38,9 @@
 // DEBUGGING FLAGS:
 //------------------------------------------------------------------------//
 // #define SIKTEC_EPD_DEBUG
+// #define SIKTEC_EPD_DEBUG_COMMAND_LISTS
 // #define SIKTEC_EPD_DEBUG_PIXELS
-// #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 150
+// #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
 
 //------------------------------------------------------------------------//
 // INCLUDES:
@@ -42,7 +55,7 @@
 
 #define EPD_DATA_MODE               0x1
 #define EPD_COMMAND_MODE            0x0
-#define EPD_CMD_SEQUENCE_WAIT_BUSY  0xFF
+#define EPD_CMD_SEQUENCE_WAIT       0xFF
 #define EPD_CMD_SEQUENCE_END        0xFE
 
 namespace SIKtec {
@@ -64,7 +77,7 @@ typedef enum {
   EPD_MODE_TRICOLOR,
   EPD_MODE_GRAYSCALE4,
   EPD_MODE_MONO_PARTIAL
-} siktecepd_mode_t;
+} epd_mode_t;
 
 /**
  * @brief simple swap macro function
@@ -75,6 +88,20 @@ typedef enum {
     a = b;               \
     b = t;               \
   }
+
+typedef struct EPD_Pins {
+    int8_t epd_cs;
+    int8_t sram_cs;
+    int8_t dc;
+    int8_t rst;
+    int8_t busy;
+} epd_pins_t;
+
+typedef struct EPD_SRAM_Space {
+    uint32_t    kbit;
+    uint32_t    bytes;
+    uint16_t    address;
+} epd_sram_space_t;
 
 //------------------------------------------------------------------------//
 // SIKTEC_EPD
@@ -87,16 +114,28 @@ typedef enum {
 class SIKTEC_EPD : public Adafruit_GFX {
 
 public:
+
     /** @brief  The SIKTEC EPD constructor when you you define your own SPI pins. */
     SIKTEC_EPD(
-            int width, int height, 
-            int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t MISO, int8_t BUSY = -1
+        int width, int height, 
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
     );
-
+    SIKTEC_EPD(
+        int width, int height, 
+        const epd_pins_t &pins, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+    );
     /** @brief The SIKTEC EPD constructor with the Arduino SPIClass. */
     SIKTEC_EPD(
-            int width, int height, 
-            int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t BUSY = -1, SPIClass *spi = &SPI
+        int width, int height, 
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+        SPIClass *spi = &SPI
+    );
+    SIKTEC_EPD(
+        int width, int height, 
+        const epd_pins_t &pins, 
+        SPIClass *spi = &SPI
     );
 
     /** @brief virtual clears the internal buffers and destructs SRAM object. */
@@ -111,6 +150,12 @@ public:
     SIKTEC_SRAM *sram;
     bool is_using_sram();
 
+    epd_sram_space_t getFreeSramSpace(uint32_t assumeTotalSizeKib = 256);
+
+    #ifdef SIKTEC_EPD_DEBUG
+        uint32_t analyzeSRAMsize(const bool print, Stream *SerialPort = &Serial);
+    #endif
+
 protected:
 
     bool use_sram; ///< true if we are using an SRAM chip as a framebuffer
@@ -119,8 +164,8 @@ protected:
     // BUFFERS:
     //------------------------------------------------------------------------//
 
-    uint32_t buffer1_size;          // size of the primary buffer
-    uint32_t buffer2_size;          // size of the secondary buffer
+    uint32_t buffer1_size = 0;          // size of the primary buffer
+    uint32_t buffer2_size = 0;          // size of the secondary buffer
     uint8_t *buffer1;               // the pointer to the primary buffer if using on-chip ram
     uint8_t *buffer2;               // the pointer to the secondary buffer if using on-chip ram
     uint8_t *color_buffer;          // the pointer to the color buffer if using on-chip ram
@@ -149,17 +194,16 @@ public:
 
 protected:
     
-    int8_t _dc_pin;
-    int8_t _reset_pin;
-    int8_t _cs_pin;
-    int8_t _busy_pin;
-    uint16_t default_refresh_delay = 15000;
-    uint8_t partialsSinceLastFullUpdate = 0;
-    siktecepd_mode_t inkmode;                   ///< Ink mode passed to begin() from driver begin()
-    bool blackInverted;                         ///< is black channel inverted
-    bool colorInverted;                         ///< is red channel inverted
-    uint8_t layer_colors[EPD_NUM_COLORS];
-    bool epdPower = false;
+    epd_pins_t  pins;
+    uint16_t    fixed8_width = 0;
+    uint16_t    fixed8_height = 0;
+    uint16_t    default_refresh_delay = 15000;
+    uint8_t     partialsSinceLastFullUpdate = 0;
+    epd_mode_t  inkmode;                            ///< Ink mode passed to begin() from driver begin()
+    bool        blackInverted;                      ///< is black channel inverted
+    bool        colorInverted;                      ///< is red channel inverted
+    uint8_t     layer_colors[EPD_NUM_COLORS];
+    bool        epdPower = false;
 
 public:
 
@@ -183,11 +227,28 @@ public:
     bool EPD_isPowered();
 
     //Debugging stuff:
+    void debugPixel(const int16_t x, const int16_t y, Stream *SerialPort = &Serial);
     void _print_debug_byte(uint16_t addr, uint8_t value, bool new_line = false, Stream *SerialPort = &Serial);
     void _display_buffer(uint16_t from_addr, uint8_t cols, int length, Stream *SerialPort = &Serial);
 
 protected:
 
+    /** @brief a struct used to address pixels*/
+    typedef struct PixelAddress {
+        bool inBound;
+        uint16_t offset;
+        int16_t rx;
+        int16_t ry;
+        uint16_t sram_black;
+        uint16_t sram_color;
+        uint8_t *ram_black;
+        uint8_t *ram_color;
+    } pixelAddress_t;
+
+    bool pixelInBounds(const int16_t x, const int16_t y);
+    uint16_t getPixelAddressOffset(const int16_t x, const int16_t y);
+    pixelAddress_t getPixelAddress(const int16_t x, const int16_t y);
+    
     void writeRAMFramebufferToEPD(uint8_t *buffer, uint32_t buffer_size, uint8_t EPDlocation, bool invertdata = false);
     void writeSRAMFramebufferToEPD(uint16_t SRAM_buffer_addr, uint32_t buffer_size, uint8_t EPDlocation, bool invertdata = false);
 
@@ -195,12 +256,19 @@ protected:
     // BOARD Implementations required:
     //------------------------------------------------------------------------//
 
+public:
+
+    void setInitAndLut(const uint8_t * code = nullptr, const uint8_t * lut = nullptr, bool partial = false);
+    void setInitCode(const uint8_t * code, bool partial = false);
+    void setLut(const uint8_t * lut, bool partial = false);
+
 protected:
 
-    const uint8_t *_epd_init_code           = NULL;
-    const uint8_t *_epd_lut_code            = NULL;
-    const uint8_t *_epd_partial_init_code   = NULL;
-    const uint8_t *_epd_partial_lut_code    = NULL;
+    const uint8_t *_epd_init_code           = nullptr;
+    const uint8_t *_epd_lut_code            = nullptr;
+    const uint8_t *_epd_partial_init_code   = nullptr;
+    const uint8_t *_epd_partial_lut_code    = nullptr;
+
 
     /** 
      * @brief Send the specific command to start writing to EPD display RAM
@@ -218,7 +286,7 @@ protected:
      * @param y Y address counter value
     */
     virtual void setRAMAddress(uint16_t x, uint16_t y) = 0;
-    virtual void busy_wait(void) = 0;
+    virtual void busy_wait(uint16_t moredelay = 0) = 0;
 
     /** @brief start up the display */
     virtual void powerUp() = 0;

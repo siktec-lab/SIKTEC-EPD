@@ -1,168 +1,41 @@
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.1
+// Release Version : 1.0.2
 // Creation Date: 2022-04-12
 // Copyright 2022, SIKTEC.
 // 
 /******************************************************************************/
 /*****************************      NOTES       *******************************
-    -> UC8276 -> IL0398 SIKTEC_EPD_G4
+    -> driver UC8276 -> IL0398 SIKTEC_EPD_G4
 *******************************************************************************/
 /*****************************      Changelog       ****************************
 1.0.1:
     -> initial release
+1.0.2:
+    -> Improved drivers layout - all init lut and instructions moved to a header file.
+    -> Improved lut for 4gray G4 board..
+    -> Fixed Arduino DUE complianing and miscalculating buffer sizes.
+    -> Improved debugging methods.
 *******************************************************************************/
 
 /**  @file SIKTEC_EPD_G4.h */
 #pragma once
 
-//------------------------------------------------------------------------//
-// Ram mode definitions for EPD:
-//------------------------------------------------------------------------//
-#define EPD_G4_RAM_BW 0x10
-#define EPD_G4_RAM_RED 0x13
+#include "SIKTEC_EPD_G4_inst_lut.h"
 
 //------------------------------------------------------------------------//
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
 #define EPD_G4_BUSY_DELAY    500
+#define EPD_G4_REFRESH_DELAY 3000 
 #define EPD_G4_WIDTH         300
 #define EPD_G4_HEIGHT        400
-#define EPD_G4_RAM_SIZE_KBIT 256
-
-//------------------------------------------------------------------------//
-// EPD DRIVER COMMANDS Driver IL0398:
-//------------------------------------------------------------------------//
-#define IL0398_PANEL_SETTING 0x00
-#define IL0398_POWER_SETTING 0x01
-#define IL0398_POWER_OFF 0x02
-#define IL0398_POWER_OFF_SEQUENCE 0x03
-#define IL0398_POWER_ON 0x04
-#define IL0398_POWER_ON_MEASURE 0x05
-#define IL0398_BOOSTER_SOFT_START 0x06
-#define IL0398_DEEP_SLEEP 0x07
-#define IL0398_DTM1 0x10
-#define IL0398_DATA_STOP 0x11
-#define IL0398_DISPLAY_REFRESH 0x12
-#define IL0398_DTM2 0x13
-#define IL0398_PDTM1 0x14
-#define IL0398_PDTM2 0x15
-#define IL0398_PDRF 0x16
-#define IL0398_LUT1 0x20
-#define IL0398_LUTWW 0x21
-#define IL0398_LUTBW 0x22
-#define IL0398_LUTWB 0x23
-#define IL0398_LUTBB 0x24
-#define IL0398_PLL 0x30
-#define IL0398_TEMPCALIBRATE 0x40
-#define IL0398_TEMPSELECT 0x41
-#define IL0398_TEMPWRITE 0x42
-#define IL0398_TEMPREAD 0x43
-#define IL0398_VCOM 0x50
-#define IL0398_LOWPOWERDETECT 0x51
-#define IL0398_TCON 0x60
-#define IL0398_RESOLUTION 0x61
-#define IL0398_GSSTSETTING 0x65
-#define IL0398_REVISION 0x70
-#define IL0398_GETSTATUS 0x71
-#define IL0398_AUTOVCOM 0x80
-#define IL0398_READVCOM 0x81
-#define IL0398_VCM_DC_SETTING 0x82
-#define IL0398_PARTWINDOW 0x90
-#define IL0398_PARTIALIN 0x91
-#define IL0398_PARTIALOUT 0x92
-#define IL0398_PROGRAMMODE 0xA0
-#define IL0398_ACTIVEPROGRAM 0xA1
-#define IL0398_READOTP 0xA2
-#define IL0398_CASCADESET 0xE0
-#define IL0398_POWERSAVING 0xE3
-#define IL0398_FORCETEMP 0xE5
+#define EPD_G4_RAM_SIZE_Kib 256
 
 namespace SIKtec {
-    
-//------------------------------------------------------------------------//
-// EPD DRIVER INIT SEQUENCES:
-//------------------------------------------------------------------------//
 
-/** @brief init sequence for mono and general use */
-static const uint8_t il0398_default_init_code[] {
-    0xFF, 20,                            // busy wait
-    IL0398_BOOSTER_SOFT_START, 3, 0x17, 0x17, 0x17,
-    IL0398_POWER_ON, 0,
-    0xFF, 20,                            // busy wait
-    IL0398_PANEL_SETTING, 2, 0x1F, 0x0D, // lut from OTP & VCOM = 0v
-    IL0398_VCOM, 1, 0x97,
-    0xFE
-};
-
-/** @brief init sequence for gray4 */
-static const uint8_t ti_420t2_gray4_init_code[] {
-    IL0398_POWER_SETTING, 5, 0x03, 0x00, 0x2b, 0x2b, 0x13,
-    IL0398_BOOSTER_SOFT_START, 3, 0x17, 0x17, 0x17,
-    IL0398_POWER_ON, 0,
-    0xFF, 200,
-    IL0398_PANEL_SETTING, 1, 0x3F,
-    IL0398_PLL, 1, 0x3C,    
-    IL0398_VCM_DC_SETTING, 1, 0x12,
-    IL0398_VCOM, 1, 0x97,
-    0xFE // EOM
-};
-
-//------------------------------------------------------------------------//
-// LOOK UP TABLES:
-//------------------------------------------------------------------------//
-
-static const uint8_t ti_420t2_gray4_lut_code[] = {
-  // const unsigned char lut_vcom[]PROGMEM =
-  IL0398_LUT1, 42,
-  0x00, 0x0A, 0x00, 0x00, 0x00, 0x01,
-  0x60, 0x14, 0x14, 0x00, 0x00, 0x01,
-  0x00, 0x14, 0x00, 0x00, 0x00, 0x01,
-  0x00, 0x13, 0x0A, 0x01, 0x00, 0x01,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  // const unsigned char lut_ww[]PROGMEM ={
-  IL0398_LUTWW, 42, 
-  0x40, 0x0A, 0x00, 0x00, 0x00, 0x01,
-  0x90, 0x14, 0x14, 0x00, 0x00, 0x01,
-  0x10, 0x14, 0x0A, 0x00, 0x00, 0x01,
-  0xA0, 0x13, 0x01, 0x00, 0x00, 0x01,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  // const unsigned char lut_bw[]PROGMEM ={
-  IL0398_LUTBW, 42,
-  0x40, 0x0A, 0x00, 0x00, 0x00, 0x01,
-  0x90, 0x14, 0x14, 0x00, 0x00, 0x01,
-  0x00, 0x14, 0x0A, 0x00, 0x00, 0x01,
-  0x99, 0x0C, 0x01, 0x03, 0x04, 0x01,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  // const unsigned char lut_wb[]PROGMEM ={
-  IL0398_LUTWB, 42,
-  0x40, 0x0A, 0x00, 0x00, 0x00, 0x01,
-  0x90, 0x14, 0x14, 0x00, 0x00, 0x01,
-  0x00, 0x14, 0x0A, 0x00, 0x00, 0x01,
-  0x99, 0x0B, 0x04, 0x04, 0x01, 0x01,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  // const unsigned char lut_bb[]PROGMEM ={
-  IL0398_LUTBB, 42,
-  0x80, 0x0A, 0x00, 0x00, 0x00, 0x01,
-  0x90, 0x14, 0x14, 0x00, 0x00, 0x01,
-  0x20, 0x14, 0x0A, 0x00, 0x00, 0x01,
-  0x50, 0x13, 0x01, 0x00, 0x00, 0x01,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
+extern char debug_message[];
+extern const int debug_message_len;
 
 //------------------------------------------------------------------------//
 // DRIVER WRAPPER Definition:
@@ -176,35 +49,63 @@ class SIKTEC_EPD_G4 : public SIKTEC_EPD {
 public:
 
     /** 
-     * @brief constructor if using Optional SRAM chip and software SPI
+     * @brief The SIKTEC EPD constructor when you you define your own SPI pins.
      * 
-     * @param SID the SID pin to use
-     * @param SCLK the SCLK pin to use
-     * @param DC the data/command pin to use
-     * @param RST the reset pin to use
-     * @param CS the chip select pin to use
-     * @param SRCS the SRAM chip select pin to use
-     * @param MISO the MISO pin to use
-     * @param BUSY the busy pin to use
+     * @param CS    the chip select pin to use
+     * @param SRCS  the SRAM chip select pin to use
+     * @param DC    the data/command pin to use
+     * @param RST   the reset pin to use
+     * @param BUSY  the busy pin to use
+     * @param SCLK  the SCLK pin to use
+     * @param MISO  the MISO pin to use
+     * @param MOSI  the SID pin to use
     */
-    inline SIKTEC_EPD_G4(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t MISO, int8_t BUSY = -1) 
-        : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, SID, SCLK, DC, RST, CS, SRCS, MISO, BUSY) {
+    inline SIKTEC_EPD_G4(
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+    ) : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, CS, SRCS, DC, RST, BUSY, spi_clock, spi_miso, spi_mosi) {
         this->_init();
     }
 
     /** 
-     * @brief constructor if using onboard SRAM and hardware SPI
+     * @brief The SIKTEC EPD constructor when you you define your own SPI pins.
      * 
-     * @param DC the data/command pin to use
-     * @param RST the reset pin to use
-     * @param CS the chip select pin to use
-     * @param SRCS the SRAM chip select pin to use
-     * @param BUSY the busy pin to use
+     * @param pins  the epd & sram pins
+     * @param SCLK  the SCLK pin to use
+     * @param MISO  the MISO pin to use
+     * @param MOSI  the SID pin to use
     */
-    inline SIKTEC_EPD_G4(int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t BUSY = -1, SPIClass *spi = &SPI) 
-        : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, DC, RST, CS, SRCS, BUSY, spi) {
+    inline SIKTEC_EPD_G4(
+        const epd_pins_t &pins, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+    ) : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, pins, spi_clock, spi_miso, spi_mosi) {
         this->_init();
     }
+
+    /** 
+     * @brief The SIKTEC EPD constructor when you you define the default Hardware SPI.
+     * 
+     * @param CS    the chip select pin to use
+     * @param SRCS  the SRAM chip select pin to use
+     * @param DC    the data/command pin to use
+     * @param RST   the reset pin to use
+     * @param BUSY  the busy pin to use
+    */
+    inline SIKTEC_EPD_G4(
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY
+    ) : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, CS, SRCS, DC, RST, BUSY) {
+        this->_init();
+    }
+
+    /** 
+     * @brief The SIKTEC EPD constructor when you you define the default Hardware SPI.
+     * 
+     * @param pins  the epd & sram pins
+    */
+    inline SIKTEC_EPD_G4(const epd_pins_t &pins) : SIKTEC_EPD(EPD_G4_WIDTH, EPD_G4_HEIGHT, pins) {
+        this->_init();
+    }
+
 
 private:
 
@@ -215,20 +116,20 @@ private:
      * @returns void
      */
     inline void _init() {
+
         // Set buffers size:
-        this->buffer1_size = this->epd_width * this->epd_height / 8;    // 15,000 -> should be
-        this->buffer2_size = this->buffer1_size;                        // 15,000 -> should be
+        //SH: added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
+        this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
+        this->buffer2_size = this->buffer1_size;
 
         #ifdef SIKTEC_EPD_DEBUG
-            Serial.println("Allocating Buffer Size:");
-            Serial.print("     - screen size -> ");
-            Serial.print(this->epd_width);
-            Serial.print(", ");
-            Serial.println(this->epd_height);
-            Serial.print("     - buf 1 -> ");
-            Serial.println(this->buffer1_size);
-            Serial.print("     - buf 2 -> ");
-            Serial.println(this->buffer2_size);
+            sprintf(
+                debug_message, 
+                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
+                this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
+                this->buffer1_size, this->buffer2_size
+            );
+            Serial.print(debug_message);
         #endif
 
         if (this->use_sram) {
@@ -245,7 +146,7 @@ private:
             this->buffer2 = (uint8_t *)malloc(this->buffer2_size); // 15,000 bytes
 
             #ifdef SIKTEC_EPD_DEBUG
-                Serial.println("Allocating on Internal MEM");
+                Serial.println("Allocating on RAM");
             #endif
         }
     }
@@ -263,7 +164,7 @@ public:
      * 
      * @returns void
      */
-    inline void begin(siktecepd_mode_t mode = EPD_MODE_MONO) {
+    inline void begin(epd_mode_t mode = EPD_MODE_MONO) {
             
         SIKTEC_EPD::begin(true);
         
@@ -273,10 +174,9 @@ public:
 
         this->inkmode = mode;
 
-        if (mode == EPD_MODE_MONO) {
+        this->setInitAndLut(); // defaults to nullptr
         
-            this->_epd_init_code = NULL;
-            this->_epd_lut_code = NULL;
+        if (mode == EPD_MODE_MONO) {
 
             this->layer_colors[EPD_WHITE] = 0b00;
             this->layer_colors[EPD_BLACK] = 0b01;
@@ -287,8 +187,7 @@ public:
         
         } else if (mode == EPD_MODE_GRAYSCALE4) {
 
-            this->_epd_init_code = ti_420t2_gray4_init_code;
-            this->_epd_lut_code = ti_420t2_gray4_lut_code;
+            this->setInitAndLut(ti_420t2_gray4_init_code, ti_420t2_gray4_lut_code);
 
             this->layer_colors[EPD_WHITE] = 0b00;
             this->layer_colors[EPD_BLACK] = 0b11;
@@ -299,7 +198,7 @@ public:
 
         }
 
-        this->default_refresh_delay = 1000;
+        this->default_refresh_delay = EPD_G4_REFRESH_DELAY;  //ms
 
         this->setRotation(1);
         this->powerDown();
@@ -334,14 +233,6 @@ public:
             this->EPD_commandList(this->_epd_lut_code);
         }
 
-        //Set resolution:
-        uint8_t buf[4];
-        buf[0] = (this->HEIGHT >> 8) & 0xFF;
-        buf[1] = this->HEIGHT & 0xFF;
-        buf[2] = (this->WIDTH >> 8) & 0xFF;
-        buf[3] = this->WIDTH & 0xFF;
-        this->EPD_command(IL0398_RESOLUTION, buf, 4);
-
         this->epdPower = true;
 
         delay(20);
@@ -356,7 +247,7 @@ public:
         this->EPD_command(IL0398_DISPLAY_REFRESH);
         delay(50);
         this->busy_wait();
-        if (this->_busy_pin <= -1) {
+        if (this->pins.busy <= -1) {
             delay(this->default_refresh_delay);
         }
     }
@@ -384,7 +275,7 @@ public:
         this->EPD_command(IL0398_POWER_OFF);
         this->busy_wait();
         // Only deep sleep if we can get out of it
-        if (this->_reset_pin >= 0) {
+        if (this->pins.rst >= 0) {
             buf[0] = 0xA5; // deep sleep
             this->EPD_command(IL0398_DEEP_SLEEP, buf, 1);
         }
@@ -431,15 +322,17 @@ protected:
      *         wait for HIGH.
      * @returns void
      */
-    inline void busy_wait() {
-        if (this->_busy_pin >= 0) {
-            while (!digitalRead(this->_busy_pin)) { // wait for busy HIGH
+    inline void busy_wait(uint16_t moredelay = 0) {
+        if (this->pins.busy >= 0) {
+            while (!digitalRead(this->pins.busy)) { // wait for busy HIGH
                 this->EPD_command(IL0398_GETSTATUS);
-                delay(100);
+                delay(50);
             }
-            delay(200);
         } else {
             delay(EPD_G4_BUSY_DELAY);
+        }
+        if (moredelay > 0) {
+            delay(moredelay);
         }
     }
 

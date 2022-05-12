@@ -1,68 +1,41 @@
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.1
+// Release Version : 1.0.2
 // Creation Date: 2022-04-12
 // Copyright 2022, SIKTEC.
 // 
 /******************************************************************************/
 /*****************************      NOTES       *******************************
-    -> UC8276 -> SIKTEC_EPD_3CU
+    -> driver UC8276 -> SIKTEC_EPD_3CU
 *******************************************************************************/
 /*****************************      Changelog       ****************************
 1.0.1:
     -> initial release
+1.0.2:
+    -> Improved drivers layout - all init lut and instructions moved to a header file.
+    -> Fixed Arduino DUE complianing and miscalculating buffer sizes.
+    -> Improved debugging methods.
+
 *******************************************************************************/
 
 /**  @file SIKTEC_EPD_3CU.h */
 #pragma once 
 
-//------------------------------------------------------------------------//
-// Ram mode definitions for EPD:
-//------------------------------------------------------------------------//
-#define EPD_3CU_RAM_BW  0x10
-#define EPD_3CU_RAM_RED 0x13
+#include "SIKTEC_EPD_3CU_inst_lut.h"
 
 //------------------------------------------------------------------------//
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
 #define EPD_3CU_BUSY_DELAY    500
+#define EPD_3CU_REFRESH_DELAY 13000 
 #define EPD_3CU_WIDTH         300
 #define EPD_3CU_HEIGHT        400
-#define EPD_3CU_RAM_SIZE_KBIT 256
-
-//------------------------------------------------------------------------//
-// EPD DRIVER COMMANDS Driver UC8276:
-//------------------------------------------------------------------------//
-#define UC8276_PANELSETTING 0x00
-#define UC8276_POWEROFF 0x02
-#define UC8276_POWERON 0x04
-#define UC8276_DEEPSLEEP 0x07
-#define UC8276_DISPLAY_REFRESH 0x12
-#define UC8276_WRITE_RAM1 0x10
-#define UC8276_WRITE_RAM2 0x13
-#define UC8276_WRITE_VCOM 0x50
-#define UC8276_GET_STATUS 0x71
-
+#define EPD_3CU_RAM_SIZE_Kib 256
 
 namespace SIKtec {
 
-//------------------------------------------------------------------------//
-// EPD DRIVER INIT SEQUENCES:
-//------------------------------------------------------------------------//
-
-/** @brief init sequence for mono and general use */
-static const uint8_t uc8276_default_init_code[] {
-    UC8276_POWERON, 0, // soft reset
-    0xFF, 20,          // busy wait
-    UC8276_PANELSETTING, 1, 0x0f, // LUT from OTP
-    UC8276_WRITE_VCOM, 1, 0xD7,
-    0xFE
-};
-
-//------------------------------------------------------------------------//
-// LOOK UP TABLES:
-//------------------------------------------------------------------------//
-
+extern char debug_message[];
+extern const int debug_message_len;
 
 //------------------------------------------------------------------------//
 // DRIVER WRAPPER Definition:
@@ -75,35 +48,63 @@ class SIKTEC_EPD_3CU : public SIKTEC_EPD {
 public:
 
     /** 
-     * @brief constructor if using external SRAM chip and software SPI
+     * @brief The SIKTEC EPD constructor when you you define your own SPI pins.
      * 
-     * @param SID   the SID pin to use
-     * @param SCLK  the SCLK pin to use
-     * @param DC    the data/command pin to use
-     * @param RST   the reset pin to use
      * @param CS    the chip select pin to use
      * @param SRCS  the SRAM chip select pin to use
-     * @param MISO  the MISO pin to use
+     * @param DC    the data/command pin to use
+     * @param RST   the reset pin to use
      * @param BUSY  the busy pin to use
+     * @param SCLK  the SCLK pin to use
+     * @param MISO  the MISO pin to use
+     * @param MOSI  the SID pin to use
     */
-    inline SIKTEC_EPD_3CU(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t MISO, int8_t BUSY = -1)
-        : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, SID, SCLK, DC, RST, CS, SRCS, MISO, BUSY) {
+    inline SIKTEC_EPD_3CU(
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY, spi_clock, spi_miso, spi_mosi) {
         this->_init();
     }
     
     /** 
-     * @brief constructor if using on-chip RAM and hardware SPI
+     * @brief The SIKTEC EPD constructor when you you define your own SPI pins.
      * 
-     * @param DC    the data/command pin to use
-     * @param RST   the reset pin to use
-     * @param CS    the chip select pin to use
-     * @param SRCS  the SRAM chip select pin to use
-     * @param BUSY  the busy pin to use
+     * @param pins  the epd & sram pins
+     * @param SCLK  the SCLK pin to use
+     * @param MISO  the MISO pin to use
+     * @param MOSI  the SID pin to use
     */
-    inline SIKTEC_EPD_3CU(int8_t DC, int8_t RST, int8_t CS, int8_t SRCS, int8_t BUSY = -1, SPIClass *spi = &SPI)
-        : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, DC, RST, CS, SRCS, BUSY, spi) {
+    inline SIKTEC_EPD_3CU(
+        const epd_pins_t &pins, 
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins, spi_clock, spi_miso, spi_mosi) {
         this->_init();
     }
+    
+    /** 
+     * @brief The SIKTEC EPD constructor when you you define the default Hardware SPI.
+     * 
+     * @param CS    the chip select pin to use
+     * @param SRCS  the SRAM chip select pin to use
+     * @param DC    the data/command pin to use
+     * @param RST   the reset pin to use
+     * @param BUSY  the busy pin to use
+    */
+    inline SIKTEC_EPD_3CU(
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY) {
+        this->_init();
+    }
+    
+    /** 
+     * @brief The SIKTEC EPD constructor when you you define the default Hardware SPI.
+     * 
+     * @param pins  the epd & sram pins
+    */
+    inline SIKTEC_EPD_3CU(const epd_pins_t &pins) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins) {
+        this->_init();
+    }
+
 
 private:
 
@@ -114,26 +115,19 @@ private:
      * @returns void
      */
     inline void _init() {
-
-        //Make sure its devisible by 8:
-        if ((this->epd_height % 8) != 0) {
-            this->epd_height += 8 - (this->epd_height % 8);
-        }
-
-        // Set buffers size:
-        this->buffer1_size = this->epd_width * this->epd_height / 8;    // 15,000 -> should be
-        this->buffer2_size = this->buffer1_size;                        // 15,000 -> should be
+        // Set buffers size: 
+        //SH: added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
+        this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
+        this->buffer2_size = this->buffer1_size;
 
         #ifdef SIKTEC_EPD_DEBUG
-            Serial.println("Allocating Buffer Size:");
-            Serial.print("     - screen size -> ");
-            Serial.print(this->epd_width);
-            Serial.print(", ");
-            Serial.println(this->epd_height);
-            Serial.print("     - buf 1 -> ");
-            Serial.println(this->buffer1_size);
-            Serial.print("     - buf 2 -> ");
-            Serial.println(this->buffer2_size);
+            sprintf(
+                debug_message, 
+                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
+                this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
+                this->buffer1_size, this->buffer2_size
+            );
+            Serial.print(debug_message);
         #endif
 
         if (this->use_sram) {
@@ -151,7 +145,7 @@ private:
             this->buffer2 = (uint8_t *)malloc(this->buffer2_size); // 15,000 bytes
 
             #ifdef SIKTEC_EPD_DEBUG
-                Serial.println("Allocating on Internal MEM");
+                Serial.println("Allocating on RAM");
             #endif
 
         }
@@ -162,7 +156,7 @@ public:
     uint32_t epd_width    = EPD_3CU_WIDTH;  //!< the definition width.
     uint32_t epd_height   = EPD_3CU_HEIGHT; //!< the definition height.
 
-        /**
+    /**
      * @brief start and initialize the epd.
      * 
      * will set buffers (COLOR, BLACK) inverted modes.
@@ -172,7 +166,7 @@ public:
      * 
      * @returns void
      */
-    inline void begin(siktecepd_mode_t mode = EPD_MODE_TRICOLOR) {
+    inline void begin(epd_mode_t mode = EPD_MODE_TRICOLOR) {
         SIKTEC_EPD::begin(true);
 
         this->inkmode = mode;
@@ -180,7 +174,9 @@ public:
         this->setColorBuffer(1, false); // red defaults to un inverted
         this->setBlackBuffer(0, true);  // black defaults to inverted
 
-        this->default_refresh_delay = 13000;
+        this->default_refresh_delay = EPD_3CU_REFRESH_DELAY; //ms
+
+        this->setInitAndLut(); // defaults to nullptr
 
         this->layer_colors[EPD_WHITE] = 0b00; 
         this->layer_colors[EPD_BLACK] = 0b01; 
@@ -231,7 +227,7 @@ public:
         this->EPD_command(UC8276_DISPLAY_REFRESH);
         delay(50);
         this->busy_wait();
-        if (this->_busy_pin <= -1) {
+        if (this->pins.busy <= -1) {
             delay(this->default_refresh_delay);
         }
     }
@@ -251,14 +247,13 @@ public:
         if (!this->epdPower) return;
 
         uint8_t buf[1];
-        // disable VCOM
-        buf[0] = 0xF7;
+        buf[0] = 0xF7; // disable VCOM
         this->EPD_command(UC8276_WRITE_VCOM, buf, 1);
         this->EPD_command(UC8276_POWEROFF);
         this->busy_wait();
 
         // Only deep sleep if we can get out of it
-        if (this->_reset_pin >= 0) {
+        if (this->pins.rst >= 0) {
             buf[0] = 0xA5;
             this->EPD_command(UC8276_DEEPSLEEP, buf, 1);
         }
@@ -326,15 +321,17 @@ protected:
      * wait for HIGH.
      * @returns void
      */
-    inline void busy_wait() {
-        if (this->_busy_pin >= 0) {
-            while (!digitalRead(this->_busy_pin)) { // wait for busy HIGH
+    inline void busy_wait(uint16_t moredelay = 0) {
+        if (this->pins.busy >= 0) {
+            while (!digitalRead(this->pins.busy)) { // wait for busy HIGH
                 this->EPD_command(UC8276_GET_STATUS);
                 delay(100);
             }
-            delay(200);
         } else {
             delay(EPD_3CU_BUSY_DELAY);
+        }
+        if (moredelay > 0) {
+            delay(moredelay);
         }
     }
 

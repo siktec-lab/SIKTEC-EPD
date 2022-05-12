@@ -22,13 +22,7 @@
  * 
  * 
 *******************************************************************************/
-/**********************************************************************************************/
-// FOR TESTING & DEBUGGING:
-/**********************************************************************************************/
-// #define SIKTEC_EPD_DEBUG
-#define QC_PRINT_TEXT
-#define QC_COLOR_MAP
-#define QC_SAND_CIRCLES
+
 
 /**********************************************************************************************/
 // TEST WITH TIS BOARD:
@@ -54,22 +48,27 @@ using namespace SIKtec;
 /**********************************************************************************************/
 #if defined(ESP32)
     
+    #define CUR_BOARD "ESP32"
     #define EPD_PINS {16, 17, 4, 13, 15}
 
 #elif defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
     
+    #define CUR_BOARD "MEGA"
     #define EPD_PINS {8, 9, 10, 11, 12}
 
 #elif defined(ARDUINO_AVR_UNO) ||  defined(ARDUINO_AVR_NANO) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
 
+    #define CUR_BOARD "328P"
     #define EPD_PINS {9, 8, 7, 6, 5}
 
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega16U4__)
 
+    #define CUR_BOARD "LEONARDO"
     #define EPD_PINS {9, 8, 7, 6, 5}
 
 #elif defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
 
+    #define CUR_BOARD "DUE"
     #define EPD_PINS {9, 8, 7, 6, 5}
 
 #endif
@@ -86,10 +85,11 @@ SIKTEC_EPD_3CS *board;
 
 
 //Forward declaration for helper functions used by this example:
-void draw_text(int16_t, int16_t, uint16_t, const char[]);
-void color_map(const int16_t, const int16_t, const int16_t, const int16_t, const int16_t);
-void sand_circles(const uint16_t, const uint16_t, const uint16_t);
 
+void draw_lines(int16_t, int16_t, uint16_t, int16_t, uint16_t);
+const char userData[] = "this is a some data to be stored in user space of SRAM"; 
+const size_t userDataLen = sizeof(userData) / sizeof(userData[0]);
+epd_sram_space_t free_buffer;
 //Setup: Serial -> EPD initialize.
 void setup() {
 
@@ -97,23 +97,15 @@ void setup() {
     Serial.begin(115200);
     while (!Serial) { delay(10); }
     
-    delay(2000);
+    delay(3000);
 
     //Initialize EPD:
-    ////TODO: remove later for debugging
-    
+    Serial.println(CUR_BOARD);
     Serial.println("Initialize EPD:");
-    Serial.print("MOSI: ");
-    Serial.println(MOSI);
-    Serial.print("MISO: ");
-    Serial.println(MISO);
-    Serial.print("SCK: ");
-    Serial.println(SCK);
 
     // board = new SIKTEC_EPD_G4(epd_pins);
     // board = new SIKTEC_EPD_3CU(epd_pins);
     board = new SIKTEC_EPD_3CS(epd_pins);
-
 
     //For debugging - check if we are using sram or not:
     if (board->is_using_sram()) {
@@ -122,9 +114,14 @@ void setup() {
         Serial.println("EPD Initialized - NOT USING SRAM");
     }
 
-    //Start communication with EPD and set the color mode:
-    //This can be called multiple time to change the color mode on dynamically
+    free_buffer = board->getFreeSramSpace();
+    Serial.printf("Available SRAM For user: %u, %u, %u \n", free_buffer.kbit, free_buffer.bytes, free_buffer.address);
+
     
+
+    board->sram->write(free_buffer.address, (uint8_t *)userData, sizeof(userData) / sizeof(userData[0]));
+    //Start communication with EPD and set the color mode: 0x7FFF
+    //This can be called multiple time to change the color mode on dynamically    
     // board->begin(EPD_MODE_MONO);
     board->begin(EPD_MODE_TRICOLOR);
     // board->begin(EPD_MODE_GRAYSCALE4);
@@ -134,78 +131,51 @@ void setup() {
 
 void loop() {
     
-    Serial.println("IN LOOP >>> "); //TODO: remove later for debugging
+    Serial.println("IN LOOP >>>>>>>> "); //TODO: remove later for debugging
     //Clear the buffer -> all will be white:
     board->clearBuffer();
 
+    int fill = 10;
+    for (int i = 0; i < fill; ++i) {
+        draw_liness(1, i * 3, fill*2 - i*2, 1, (i % 2 ? EPD_GRAY : EPD_BLACK));
+    }
+
+    //board->drawBitmap()
+    // draw_liness(0, 0, 10, 10, EPD_BLACK);
+    // draw_liness(12, 0, 10, 10, EPD_GRAY);
     // //Set text size:
-    board->setTextSize(2);
+    // draw_liness(0, 0, 1, 1, EPD_BLACK);
+    // board->debugPixel(0, 0);
+    // board->debugPixel(1, 0);
+    // board->debugPixel(0, 1);
+    // board->debugPixel(1, 1);
 
-    #ifdef QC_PRINT_TEXT
-        if (board->is_using_sram()) {
-            draw_text(5, 10, EPD_BLACK, "SIKTEC EPD QC - SRAM Enabled.");
-        } else {
-            draw_text(5, 10, EPD_BLACK, "SIKTEC EPD QC - SRAM Disabled.");
-        }
-    #endif
-
-    #ifdef QC_COLOR_MAP
-        color_map(55, 55, 10, 300, 40); 
-    #endif
-
-    #ifdef QC_SAND_CIRCLES
-        sand_circles(190, 12, 16);
-    #endif
+    // draw_liness(3, 0, 1, 1, EPD_GRAY);
+    // board->debugPixel(3, 0);
+    // board->debugPixel(4, 0);
+    // board->debugPixel(3, 1);
+    // board->debugPixel(4, 1);
 
     // //Draw the buffer on screen and power down:
     board->display(true);
 
+
+    //Test user space:
+    char readBuff[userDataLen];
+    board->sram->read(free_buffer.address, (uint8_t *)readBuff, userDataLen);
+
+    Serial.printf("data after all -> %s <<<\n", readBuff);
     while (1) { ; };
 }
 
-void draw_text(int16_t x, int16_t y, uint16_t color, const char str[]) {
+void draw_liness(int16_t sx, int16_t sy, int16_t w, int16_t h, uint16_t color) {
     
     //Draw the text using GFX library:
-    board->setTextColor(color);
-    board->setCursor(x, y);
-    board->print(str);
-}
-
-void sand_circles(const uint16_t y, const uint16_t middleRep, const uint16_t sideRep) {
-
-    //Circles using GFX library:
-    for (uint16_t i = 0; i < sideRep; i++) {
-        board->drawCircle(100, y, i * 5, (i % 2 != 0 ? EPD_BLACK : EPD_RED));
-    }
-    for (uint16_t i = 0; i < middleRep; i++) {
-        board->drawCircle(200, y, i * 5, (i % 2 != 0 ? EPD_BLACK : EPD_RED));
-    }
-    for (uint16_t i = 0; i < sideRep; i++) {
-        board->drawCircle(300, y, i * 5, (i % 2 != 0 ? EPD_BLACK : EPD_RED));
+    int16_t ey = sy + h;
+    int16_t ex = sx + w;
+    for (int16_t y = sy; y < ey; ++y) {
+        for (int16_t x = sx; x < ex; ++x) {
+            board->drawPixel(x, y, color);
+        }
     }
 }
-
-void color_map(const int16_t x, const int16_t y, const int16_t gutter, const int16_t width, const int16_t height) {
-    int16_t cellW = (width - (gutter * EPD_NUM_COLORS - 1)) / EPD_NUM_COLORS;  
-    int16_t cellH = height;
-    int16_t move  = cellW + gutter;
-
-    //Rectangles using GFX library:
-    for (uint8_t i = 0; i < EPD_NUM_COLORS; ++i) {
-        board->drawRect(
-            x + (move * i), 
-            y, 
-            cellW, 
-            cellH, 
-            EPD_BLACK
-        );
-        board->fillRect(
-            x + (move * i) + 4, 
-            y + 4, 
-            cellW - 8, 
-            cellH - 8, 
-            i
-        );
-    }
-}
-

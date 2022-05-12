@@ -1,16 +1,41 @@
-# SIKTEC-SRAM
-Library for Interfacing Microchip SRAM chips.<br />
-Suitable and tested with Microchip 23K256-I/SN should work with most of the chips of the same family and others.
+# SIKTEC-EPD
+ ePaper / eInk display driver to easily integrate SIKTEC displays.<br />
+ Adafruit GFX compatible with optional external SRAM use.
 
 <br/>
 
 ## Description
-This library seamlessly communcates with SPI based SRAM chips and exposes a simple and lightweight API to interface with an external SRAM chip.<br />
-The library is well documented and has 2 examples - You can easily write / read / erase and debug SRAM chips. All SPI communication is managed by the library. <br />
-This library can be easily ported to other chips by simply changing the instruction set used by the library. 
+This library seamlessly integrates Epaper displays with SRAM support and exposes GFX drawing functions. <br />
+Its mainly for using SIKTEC display boards and that features several different EPD drivers which are all included in this library. <br />
+The library is designed to be simple yet very flexible and can be used for any board that is driven by one of the implemented drivers.   
 <br />
 
-### **Physically tested with:**
+<a id="drivers-epd"></a>
+
+### **Implemented Drivers:**
+
+| DRIVER             | Constructor         | Color                | Datasheet                                                  |
+|:------------------:|:--------------------|:---------------------|:-----------------------------------------------------------|
+| **IL0398**         | `SIKTEC_EPD_G4()`   | EPD_MODE_GRAYSCALE4  | [IL09398.pdf](https://github.com/siktec-lab/SIKTEC-EPD/extras/IL09398.pdf) |
+| **UC8276**         | `SIKTEC_EPD_3CU()`  | EPD_MODE_TRICOLOR    | [UC8276.pdf](https://github.com/siktec-lab/SIKTEC-EPD/extras/UC8276.pdf) |
+| **SSD1619**        | `SIKTEC_EPD_3CS()`  | EPD_MODE_TRICOLOR    | [SSD1619A.pdf](https://github.com/siktec-lab/SIKTEC-EPD/extras/SSD1619A.pdf) |
+
+<br />
+
+### **Physically tested with BOARDS:**
+
+| BOARD    | Pins (EPD_CS, EPD_DC, EPD_RESET, EPD_BUSY, SRAM_CS)              | Tested with:                 | 
+|:--------:|:-----------------------------------------------------------------|:-----------------------------|
+| ESP32    | {16, 17, 4, 13, 15}                                              | Arduino IDE, PlatformIO      |
+| UNO      | {9, 8, 7, 6, 5}                                                  | Arduino IDE, PlatformIO      |
+| NANO     | {9, 8, 7, 6, 5}                                                  | Arduino IDE, PlatformIO      |
+| MEGA     | {8, 9, 10, 11, 12}                                               | Arduino IDE, PlatformIO      |
+| LEONARDO | {9, 8, 7, 6, 5}                                                  | Arduino IDE, PlatformIO      |
+| DUE      | 16, 4, 13, 15, 17                                                | Arduino IDE, PlatformIO      |
+
+<br />
+
+### **Physically tested with SRAM:**
 
 | CHIP           | Manufacturer | Datasheet                                                  |
 |:--------------:|:-------------|:-----------------------------------------------------------|
@@ -23,12 +48,11 @@ This library can be easily ported to other chips by simply changing the instruct
 ## Table of Contents:
 - [Quick Installation](#installation)
 - [Example Included](#examples)
-- [Decalring SIKTEC_SRAM](#declaring)
-- [Writing to SRAM](#writing-data)
-- [Reading from SRAM](#reading-data)
-- [Erasing data on the SRAM](#erasing-data)
+- [Decalring SIKTEC_EPD](#declaring-epd)
+- [Controling the EPD](#controling-epd)
+- [Drawing](#drawing-epd)
+- [Displaying](#displaying-epd)
 - [Debugging](#debugging)
-- [Important Notes](#important-notes)
 
 <br/>
 
@@ -36,17 +60,18 @@ This library can be easily ported to other chips by simply changing the instruct
 
 ## Installation:
 
-<hr />
-
-[Return](#table-contents)
+[ :arrow_up_small: Return](#table-contents)
 
 You can install the library through one of the following:
-1. Arduino or PlatformIO library manager: Search for "SIKTEC_SRAM" and click install.
+1. Arduino or PlatformIO library manager: Search for "SIKTEC_EPD" and click install.
 2. Download the repositories as a ZIP file and install it through the Arduino IDE by:<br/>
    `Sketch -> Include library -> Add .ZIP Library.`
 3. Download the library and include it in your project folder - Then you can Include it directly:<br/>
-    `#include "{path to}\SIKTEC_SRAM.h"`
-> **Dependency** When manually including the library you should also import the library dependencies [SIKTEC_SPI.h](https://github.com/siktec-lab/SIKTEC-SPI) .
+    `#include "{path to}\SIKTEC_EPD.h"`
+> :paperclip: **Dependencies** :  When manually including the library you should also import the library dependencies
+> - [SIKTEC_SPI.h](https://github.com/siktec-lab/SIKTEC-SPI)
+> - [SIKTEC_SRAM.h](https://github.com/siktec-lab/SIKTEC-SRAM)
+> - [Adafruit_GFX.h](https://github.com/adafruit/Adafruit-GFX-Library) *and its own dependencies
 
 <br/>
 
@@ -54,144 +79,197 @@ You can install the library through one of the following:
 
 ## Example included:
 
-<hr />
+[ :arrow_up_small: Return](#table-contents)
 
-[Return](#table-contents)
-
-- **ReadWrite.ino** - A simple example that writes an array to SRAM, dumps raw data from the SRAM chip and Reads back the read data.
-- **StoreStruct.ino** - This example demonstrates how to serialize a structure and store it on the SRAM chip - Also exposes a raw dump of the data and how to deserialize it back to the same type structure. 
+- **EPDHelloWorld.ino** - An example which can be compiled with or without SRAM - Will demonstrate printing text to the EPD, Drawing a color pallet, Drawing some cool circles. The code is well commented so feel free to go through the source code.
+> :pushpin: To disable the SRAM Set the pin as -1 
 
 <br/>
 
-<a id="declaring"></a>
+<a id="declaring-epd"></a>
 
-## Declaring of 'SIKTEC_SRAM' object:
+## Declaring of 'SIKTEC_EPD' object:
 
-<hr />
+[:arrow_up_small: Return](#table-contents)
 
-[Return](#table-contents)
-
-Call `SIKTEC_SRAM` expects a CS (chip select) pin number to initialize with default HardWare SPI - Or pass the SPI pins to be used.<br />
-After creating the `SIKTEC_SRAM` instance the `begin()` method should be called to start SRAM communication.
+Call `SIKTEC_EPD_G4 | SIKTEC_EPD_3CS | SIKTEC_EPD_3CU` with al required pins - *SpiClass is optional and if its omitted Default Arduino SPI Instance will be used.<br />
+After creating the `SIKTEC_EPD` instance the `begin()` method should be called to start EPD communication and setting the COLOR mode.
 
 ```cpp
 
-#include <SIKTEC_SRAM.h>
+#include <Adafruit_I2CDevice.h> // Only required when compiling with platformio
+#include <Adafruit_GFX.h>       // Only required when compiling with platformio
+#include <SIKTEC_EPD.h>
 
 ...
 
-//using namespace SIKtec; // Optional 
+using namespace SIKtec;
 
-//Define SRAM CS Pin attached:
-#define SRAM_CS     17
 
-//Declare SRAM object:
-SIKtec::SIKTEC_SRAM sram(SRAM_CS);
+//Declare EPD and connected pins:
+epd_pins_t epd_pins = {16, 17, 4, 13, 15}; // epd_pins_t { edp_cs, sram_cs, dc, rst, busy }
+SIKTEC_EPD_3CS *board;
+//SIKTEC_EPD_3CU *board;
+//SIKTEC_EPD_G4 *board;
 
 void setup() {
-    
-    ...
-    
-    //Start SRAM Communication
-    sram.begin();
 
-    //Set the SRAM chip array Mode:
-    if (!sram.set_mode(SRAM_MODE::SRAM_SEQ_MODE)) {
-        Serial.print("SRAM MODE FAILED");
-    }
+    ...
+
+    //Initialize:
+    board = new SIKTEC_EPD_3CS(epd_pins);
+    // board = new SIKTEC_EPD_3CU(epd_pins);
+    // board = new SIKTEC_EPD_G4(epd_pins);
+
+    //Start EPD Communication:
+    board->begin(EPD_MODE_TRICOLOR);
     ...
 }
 ...
 ```
-> - **Note**: SIKTEC_SRAM depends on SIKTEC_SPI which is an SPI wrapper that improves the SPI api.
-> - **Note**: Its a good practice to add a pull-up ressistor to the CS pin.
-> - **Note**: Three MODES are available - SRAM_SEQ_MODE, SRAM_PAGE_MODE, SRAM_BYTE_MODE - read more about those modes in the datasheet. 
+> :pushpin: SIKTEC_EPD wraps all required functionality - SRAM communication, EPD communication, GFX drawing.<br />
+> :pushpin: When declaring pin EPD_BUSY as -1, the display will wait a fix amount of time ~13 seconds. So its a good practice to dedicate a pin for the busy signal.<br />
+> :pushpin: When declaring pin EPD_RESET as -1, The EPD won't be put fully to sleep (It can't be awaken without HW reset). While Thats possible <u>it's not recommended :exclamation:</u> It may cause spooky shadow images and damage the display. 
 
 <br/>
 
-<a id="writing-data"></a>
 
-## Writing to SRAM:
 
-<hr />
 
-[Return](#table-contents)
+<a id="controling-epd"></a>
 
-By default the library doesn't set any default data on the SRAM - Its full of garbage. <br />
-To write data you should use the `write()` passing it a **start address**, a **buffer** of data, and the **size** to write.<br />
-Address space starts at `0x0000` and ends depending on the SRAM size.
+## Controling the EPD:
+
+[ :arrow_up_small: Return](#table-contents)
+
+There are 4 main methods used to control the EPD. Each one of the can be called several time and used anywhere except from withinn ISR (Interrupts).<br />
+
+**`.begin(epd_mode_t mode = EPD_MODE_MONO)`** This method starts the communication with EPD and should be called at least one after intialization before doing anything with EPD.
+There are several color modes - you check the [table](#drivers-epd) above to see the matching color mode for you driver.
 
 ```cpp
-    ...
-    
-    //Write a single byte:
-    uint8_t single = 7;
-    sram.write8(0x0000, single); // will occupy 0x0000
+...
 
-    //Write a uint16:
-    uint16_t single = 1700;
-    sram.write16(0x0001, single); // will occupy 0x0001, 0x0002
-
-    //Array write:
-    uint8_t data[] = {1, 2, 3, 4, 5};
-    sram.write(0x0003, data, sizeof(data)); // will occupy 0x0003 -> 0x0007
-
-    ...
+//Start EPD Communication:
+board->begin(EPD_MODE_TRICOLOR);
+/*
+    Begin will:
+    - Wake up the display.
+    - Send an init sequence.
+    - Set the color mode and the buffers .
+*/
+...
 ```
+> :pushpin: `EPD_MODE_MONO` can be used with all board.<br />
 
-> **Note:** If an overflow occurs the SRAM chip will loop back to the 0x00 and write there.
+<br />
 
-<br/>
-
-<a id="reading-data"></a>
-
-## Reading from SRAM
-
-<hr />
-
-[Return](#table-contents)
-
-To read data you should use the object `read()` methods passing it the **starting address** and a **buffer** to write to with the requested **length**.
+**`.clearBuffer()`** This method clears the entire drawing buffer - It won trigger a refresh.
 
 ```cpp
-    ...
+...
 
-    //Read a single byte:
-    uint8_t single8 = sram.read8(0x0000);
+//Clear internal drawing buffer:
+board->clearBuffer();
 
-    //Read a uint16:
-    uint16_t single16 = sram.read16(0x0001); // will basically read 0x1 and 0x2 and returns a uint16 number
-
-    //Read to buffer:
-    uint8_t data[10];
-    sram.read(0x0003, data, sizeof(data));
-
-    ...
+...
 ```
-> **Note:** Even if you did not write data to those addresses SRAM will return data - It will be garbage data set by default.
+
+<br />
+
+**`.clearDisplay()`** This method clears the display - Basically a clearBuffer + Screen Update.
+
+```cpp
+...
+
+//Clear internal drawing buffer + refresh the display:
+board->clearDisplay();
+
+...
+```
+> :pushpin: `clearDisplay` is a full refresh so only use it when you actually need to display an empty screen.<br />
 
 <br/>
 
-<a id="erasing-data"></a>
+<a id="drawing-epd"></a>
 
-## Erasing data on the SRAM
+## Drawing
 
-<hr />
 
-[Return](#table-contents)
+[:arrow_up_small: Return](#table-contents)
 
-There is no real data erasing - The trick is to set the data to a default value which we consider as "erased". The default value used by the method is `0x00` but you can use your own - To erase you should use the `erase()` method.
+The EPD class has single drawing method `drawPixel(int16_t x, int16_t y, uint16_t color)` which will set a single pixel at a specific X,Y position
+This method is used by all of the GFX library drawing functions. - It can be called directly or passed to additional drawing libraries.
 
 ```cpp
     ...
 
-    //Erase:
-    sram.erase(0x0000, 2); // 0x0 and 0x1 will be set to 0.
-
-    sram.erase(0x0000, 2, 0x1); // 0x0 and 0x1 will be set to 1.
+    //Set a single pixel manually:
+    board->drawPixel(10, 20, EPD_BLACK);
+    /*
+        Colors: are defined by the enum:
+        enum {
+            EPD_WHITE,
+            EPD_BLACK,
+            EPD_RED,
+            EPD_GRAY,
+            EPD_DARK,
+            EPD_LIGHT,
+            EPD_NUM_COLORS
+        };
+    */
+    //All GFX drawing functions:
+    board->drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
+    board->drawFastVLine(uint16_t x0, uint16_t y0, uint16_t length, uint16_t color);
+    board->drawFastHLine(uint8_t x0, uint8_t y0, uint8_t length, uint16_t color);
+    board->drawRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color);
+    board->fillRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t color);
+    board->drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);
+    board->fillCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);
+    board->drawRoundRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t radius, uint16_t color);
+    board->fillRoundRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t radius, uint16_t color);
+    board->drawTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
+    board->fillTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
+    board->drawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t bg, uint8_t size);
+    board->setCursor(int16_t x0, int16_t y0);
+    board->setTextColor(uint16_t color);
+    board->setTextSize(uint8_t size);
+    board->setTextWrap(boolean w);
+    board->getTextBounds(string str, int16_t x, int16_ty, int16_t *x1, int16_t *y1, int16_t *w, int16_t *h);
+    board->print(str);
+    board->drawBitmap(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int16_t h, uint16_t color);
+    board->fillScreen(uint16_t color);
+    board->setRotation(uint8_t rotation);
+    board->width();
+    board->height();
+    board->setFont(&FreeMonoBoldOblique12pt7b);
 
     ...
 ```
+> :pushpin: For more about Adafruit GFX library and using custom fonts and more [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library).
+
+<br/>
+
+<a id="displaying-epd"></a>
+
+## Displaying
+
+<hr />
+
+[:arrow_up_small: Return](#table-contents)
+
+The `display(bool sleep)` method is used to transffer the buffered pixels to th EPD and disply the on the scree - passing true will powerdown the display when finished and put it in sleep mode. </br>
+The display is powered on if its need when this method is called,
+
+```cpp
+    ...
+
+    //Update display:
+    board->display(true);
+
+    ...
+```
+> :pushpin: You should alway power down the display. Not powerign down can cause damage to the display. 
 
 <br/>
 
@@ -201,52 +279,18 @@ There is no real data erasing - The trick is to set the data to a default value 
 
 <hr />
 
-[Return](#table-contents)
+[:arrow_up_small: Return](#table-contents)
 
-The library has two debugging methods `print_status()`, `mem_dump()` - Those methods expects a `Stream` instance 
-By default will use the `Serial` instance included by Arduino.  
+The library 3 macro define Flags that enables debugging. They should be defined BEFORE the library include.<br />
+Serial monitor will get all the captured data and events.
 
 ```cpp
     ...
 
-    /*  
-    void mem_dump(
-        uint16_t from, 
-        uint16_t length, 
-        bool address = true, 
-        bool decimal = true, 
-        bool hex = true, 
-        bool binary = true, 
-        Stream *serialport = &Serial
-    );
-    */
-
-    sram.mem_dump(0x0000, 2);
-    /*
-    Will print data written on sram:
-    SRAM [0x0] => 100 , 0x64 , 1100100
-    SRAM [0x1] => 0 , 0x0 , 0
-    */
-
-    sram.print_status(0x0000, 2);
-    /*
-    Will print:
-    SRAM STATUS REGISTER - 64 [1000000]
-    */
+    #define SIKTEC_EPD_DEBUG
+    #define SIKTEC_EPD_DEBUG_PIXELS
+    #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 
 
     ...
 ```
-> By default `mem_dump()` will print data in 3 formats **dec, hex, bin** - you can disable those formats with the flags passed to mem_dump.
 
-<br />
-
-<a id="important-notes"></a>
-
-## Additional notes: 
-
-<hr />
-
-[Return](#table-contents)
-
-1. The library has more methods which exposes a lower level that gives you control over the CS pin state - Its usefull especially when you want to bridge data between the SRAM chip to another connected SPI device directly.
-2. For more advance usage and storing structs use the examples which are commented and provides more real-world usage of this library.

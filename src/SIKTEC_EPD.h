@@ -55,9 +55,12 @@
 #endif
 #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
 
-#define PRINT_DEBUG_BUFFER(template, ...) \
-    sprintf(debug_message, template __VA_OPT__(,) __VA_ARGS__); \
+
+#ifndef PRINT_DEBUG_BUFFER
+#define PRINT_DEBUG_BUFFER(__template, ...) \
+    sprintf(debug_message, __template, __VA_ARGS__); \
     Serial.print(debug_message)
+#endif
 
 //------------------------------------------------------------------------//
 // INCLUDES:
@@ -208,6 +211,7 @@ protected:
 public:
 
     void begin(bool reset = true);
+    epd_mode_t  inkmode;                            ///< Ink mode passed to begin() from driver begin()
 
 protected:
     
@@ -216,7 +220,6 @@ protected:
     uint16_t    fixed8_height = 0;
     uint16_t    default_refresh_delay = 15000;
     uint8_t     partialsSinceLastFullUpdate = 0;
-    epd_mode_t  inkmode;                            ///< Ink mode passed to begin() from driver begin()
     bool        blackInverted;                      ///< is black channel inverted
     bool        colorInverted;                      ///< is red channel inverted
     uint8_t     layer_colors[EPD_NUM_COLORS];
@@ -231,7 +234,7 @@ public:
     void setBlackBuffer(int8_t index, bool inverted);
     void setColorBuffer(int8_t index, bool inverted);
     void display(bool sleep = false);
-    void EPD_commandList(const uint8_t *init_code);
+    bool EPD_commandList(const uint8_t *init_code);
     void EPD_command(uint8_t c, const uint8_t *buf, uint16_t len);
     void EPD_command(uint8_t c);
     uint8_t EPD_command_with_read(uint8_t cmd);
@@ -303,7 +306,7 @@ protected:
      * @param y Y address counter value
     */
     virtual void setRAMAddress(uint16_t x, uint16_t y) = 0;
-    virtual void busy_wait(uint16_t moredelay = 0) = 0;
+    virtual bool busy_wait(uint16_t moredelay = 0) = 0;
 
     /** @brief start up the display */
     virtual void powerUp() = 0;
@@ -325,6 +328,11 @@ protected:
 #include "drivers/SIKTEC_EPD_G4.h"
 #include "drivers/SIKTEC_EPD_3CU.h"
 #include "drivers/SIKTEC_EPD_3CS.h"
+
+//-----------------------------------------------------------------------------------------//
+// INCLUDE Extensions: should be removed by the linker if not addressed.
+//-----------------------------------------------------------------------------------------//
+#include "bitmap/SIKTEC_EPD_BITMAP.h"
 
 
 

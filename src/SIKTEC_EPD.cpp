@@ -233,9 +233,11 @@ void SIKTEC_EPD::begin(bool reset) {
     #if SIKTEC_EPD_DEBUG
         Serial.println("EPD Begin procedure");
     #endif
+
     //Set buffers:
     this->setBlackBuffer(0, true);  // black defaults to inverted
     this->setColorBuffer(1, false); // color defaults to not inverted
+
     //Set color layers - defaults B/W:
     this->layer_colors[EPD_WHITE] = 0b00; 
     this->layer_colors[EPD_BLACK] = 0b01; 
@@ -243,6 +245,7 @@ void SIKTEC_EPD::begin(bool reset) {
     this->layer_colors[EPD_GRAY]  = 0b10; 
     this->layer_colors[EPD_DARK]  = 0b01; 
     this->layer_colors[EPD_LIGHT] = 0b00; 
+
     //Begin epd spi - will also set cs:
     (void)this->_spi->begin();
     // set pins
@@ -276,14 +279,14 @@ void SIKTEC_EPD::hardwareResetEPD() {
         pinMode(this->pins.rst, OUTPUT);
         // VDD (3.3V) goes high at start, lets just chill for a ms
         digitalWrite(this->pins.rst, HIGH);
-        delay(10);
+        delay(50);
         // bring reset low
         digitalWrite(this->pins.rst, LOW);
         // wait 10ms
-        delay(10);
+        delay(20);
         // bring out of reset
         digitalWrite(this->pins.rst, HIGH);
-        delay(10);
+        delay(50);
     }
     #if SIKTEC_EPD_DEBUG
         else {
@@ -543,7 +546,7 @@ void SIKTEC_EPD::writeSRAMFramebufferToEPD(uint16_t SRAM_buffer_addr, uint32_t b
     for (uint32_t i = 0; i < buffer_size; i++) {
         #if SIKTEC_EPD_DEBUG_SRAM
             if (c != 255 && c != 0 && i < SIKTEC_EPD_DEBUG_SRAM_READ_WRITE) { //Debug only none white pixels:
-                PRINT_DEBUG_BUFFER("EPD RAM Write [%u:%#X] -> %u:%#X \n", SRAM_buffer_addr + i, SRAM_buffer_addr + i, c, c);
+                PRINT_DEBUG_BUFFER("EPD SRAM Write [%u:%#X] -> %u:%#X \n", SRAM_buffer_addr + i, SRAM_buffer_addr + i, c, c);
             }
         #endif
         if (invertdata) {
@@ -643,26 +646,33 @@ void SIKTEC_EPD::display(bool sleep) {
     }
 
     if (this->buffer2_size != 0) {
+
         // we have a second buffer - transfer it:
-        delay(2);
+        delay(10);
+
         // Set X & Y ram address: 
         this->setRAMAddress(0, 0);
+
         if (this->use_sram) {
+
             #if SIKTEC_EPD_DEBUG
                 PRINT_DEBUG_BUFFER("Write SRAM buffer2 to EPD > address: %#X size: %u \n", this->buffer2_addr, this->buffer2_size);
             #endif
             this->writeSRAMFramebufferToEPD(this->buffer2_addr, this->buffer2_size, 1);
+
         } else {
+
             #if SIKTEC_EPD_DEBUG
                 PRINT_DEBUG_BUFFER("Write RAM buffer2 to EPD > address: %#X size: %u \n", (uint32_t)this->buffer2, this->buffer2_size);
             #endif
             this->writeRAMFramebufferToEPD(this->buffer2, this->buffer2_size, 1);
+
         }
     }
 
     //Finished - update the screen now:
     #if SIKTEC_EPD_DEBUG
-        Serial.print("Updating Screen....");
+        Serial.println("Updating Screen....");
         float timer = (float)millis();
     #endif
     
@@ -670,11 +680,11 @@ void SIKTEC_EPD::display(bool sleep) {
     
     #if SIKTEC_EPD_DEBUG
         timer = ((float)millis() - timer) / 1000;
-        PRINT_DEBUG_BUFFER("Done in %.2f seconds\n", timer);
+        PRINT_DEBUG_BUFFER("Update Done in %.2f seconds\n", timer);
     #endif
 
-    // this->partialsSinceLastFullUpdate = 0; //TODO -> remember we need to handle the partial count before full refresh
-
+    //FUTURE -> remember we need to handle the partial count before full refresh
+    // this->partialsSinceLastFullUpdate = 0; 
     if (sleep) {
         this->powerDown();
     }
@@ -800,12 +810,12 @@ void SIKTEC_EPD::clearDisplay() {
  * 
  * @returns void
  */
-void SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
+bool SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
 
     //This is the command + data buffer 
     //its fixed in size and hopefully large enough lut block are usually 42 -> 57 
     uint8_t buf[64];
-
+    bool busy_check = false;
     #if SIKTEC_EPD_DEBUG_COMMAND_LISTS
         Serial.println("Starting command sequence:");
     #endif
@@ -817,8 +827,11 @@ void SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
         init_code++;
         //Busy wait instruction?
         if (cmd == EPD_CMD_SEQUENCE_WAIT) {
-            this->busy_wait(num_args); // num args in this case is the ms to delay additionally to the busywait.
-            continue;
+            if (this->busy_wait(num_args)) { // num args in this case is the ms to delay additionally to the busywait.
+                continue;
+            } else {
+                return false;
+            }
         }
         //Make sure we dont overflow:
         if (num_args > sizeof(buf)) {
@@ -841,6 +854,7 @@ void SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
     #if SIKTEC_EPD_DEBUG_COMMAND_LISTS
         Serial.println("Finished Sending command sequence.");
     #endif
+    return true;
 }
 
 /**

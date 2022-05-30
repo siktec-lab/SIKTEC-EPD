@@ -26,11 +26,18 @@
 //------------------------------------------------------------------------//
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
-#define EPD_G4_BUSY_DELAY    500
-#define EPD_G4_REFRESH_DELAY 3000 
-#define EPD_G4_WIDTH         300
-#define EPD_G4_HEIGHT        400
-#define EPD_G4_RAM_SIZE_Kib 256
+#define EPD_G4_BUSY_DELAY       500
+#define EPD_G4_BUSY_RETRY_TIMES 20
+#define EPD_G4_REFRESH_DELAY    3000 
+#define EPD_G4_WIDTH            300
+#define EPD_G4_HEIGHT           400
+#define EPD_G4_RAM_SIZE_Kib     256
+
+#ifndef PRINT_DEBUG_BUFFER
+#define PRINT_DEBUG_BUFFER(__template, ...) \
+    sprintf(debug_message, __template, __VA_ARGS__); \
+    Serial.print(debug_message)
+#endif
 
 namespace SIKtec {
 
@@ -124,7 +131,7 @@ private:
 
         #if SIKTEC_EPD_DEBUG
             PRINT_DEBUG_BUFFER(
-                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
+                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n",
                 this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
                 this->buffer1_size, this->buffer2_size
             );
@@ -210,14 +217,29 @@ public:
     inline void powerUp()  {
 
         #if SIKTEC_EPD_DEBUG
-            Serial.println("Powering Up display");
+            Serial.print("Powering Up display");
         #endif
 
         //Check if we really need to powerUp:
-        if (this->epdPower) return;
+        if (this->epdPower) {
+            #if SIKTEC_EPD_DEBUG
+                Serial.println(" - EPD Is allready powered on.");
+            #endif
+            delay(50);
+            return;
+        }
+
+        #if SIKTEC_EPD_DEBUG
+            Serial.println();
+        #endif
+
+        uint8_t tries = 1;
+
+        retry_init: 
 
         //First hard reset:
         this->hardwareResetEPD();
+
 
         //Init code default or other:
         const uint8_t *init_code = il0398_default_init_code;
@@ -226,11 +248,31 @@ public:
         }
 
         //Send init and LUT:
-        this->EPD_commandList(init_code);
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("Sending Init Sequence...");
+        #endif
+
+        if (!this->EPD_commandList(init_code)) {
+            // Normally busy signals integrated in init code dont fail - It has been observed in the wild 
+            // That for some cases IL0398 with esp32 fails to pullup the busy pins - Drivers are expected to return false from Busy 
+            // In this case and in this case this jump will make a new power up pass - I (shlomo) think it's happening 
+            // Because of the deep sleep mode - This procedure will fix that.
+            tries++;
+            #if SIKTEC_EPD_DEBUG
+                Serial.print("Init Failed! - Retrying ");
+                Serial.println(tries);
+            #endif
+            goto retry_init;
+        }
+        //Send lut table:
         if (this->_epd_lut_code) {
             this->EPD_commandList(this->_epd_lut_code);
         }
 
+        #if SIKTEC_EPD_DEBUG
+            Serial.println(" Init Sequence Done.");
+        #endif
+        
         this->epdPower = true;
 
         delay(20);
@@ -318,13 +360,23 @@ protected:
     /**
      * @brief  wait for busy signal to end - busy pin is LOW while Driver is working.
      *         wait for HIGH.
-     * @returns void
+     * @returns bool
      */
-    inline void busy_wait(uint16_t moredelay = 0) {
+    inline bool busy_wait(uint16_t moredelay = 0) {
+        #if SIKTEC_EPD_DEBUG
+            Serial.print("Waiting for busy signal.");
+        #endif
+        int test = 0;
         if (this->pins.busy >= 0) {
             while (!digitalRead(this->pins.busy)) { // wait for busy HIGH
-                this->EPD_command(IL0398_GETSTATUS);
-                delay(50);
+                //this->EPD_command(IL0398_GETSTATUS);
+                delay(200);
+                if (test++ > EPD_G4_BUSY_RETRY_TIMES) {
+                    return false;
+                }
+                #if SIKTEC_EPD_DEBUG
+                    Serial.print(".");
+                #endif
             }
         } else {
             delay(EPD_G4_BUSY_DELAY);
@@ -332,6 +384,10 @@ protected:
         if (moredelay > 0) {
             delay(moredelay);
         }
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("READY!");
+        #endif
+        return true;
     }
 
 public:

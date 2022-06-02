@@ -37,9 +37,9 @@ namespace SIKtec {
      * @brief Defaults for BWR color filter WHEN 888 mode compile flag is used:
      */
     uint8_t BITMAP_BWR_COLOR_KERNEL::greylevel_thresh   = 200;
-    uint8_t BITMAP_BWR_COLOR_KERNEL::red_r_thresh       = 150; // Bigger then 150
-    uint8_t BITMAP_BWR_COLOR_KERNEL::red_g_thresh       = 50;  // Smaller then 50
-    uint8_t BITMAP_BWR_COLOR_KERNEL::red_b_thresh       = 40;  // Smaller then 40
+    uint8_t BITMAP_BWR_COLOR_KERNEL::red_r_thresh       = 120; // Bigger then 150
+    uint8_t BITMAP_BWR_COLOR_KERNEL::red_g_thresh       = 100;  // Smaller then 50
+    uint8_t BITMAP_BWR_COLOR_KERNEL::red_b_thresh       = 100;  // Smaller then 40
     colorBits_t BITMAP_BWR_COLOR_KERNEL::black_color    = 0x00000000;
     colorBits_t BITMAP_BWR_COLOR_KERNEL::white_color    = (colorBits_t)0x00FFFFFF;
     colorBits_t BITMAP_BWR_COLOR_KERNEL::red_color      = (colorBits_t)0x00FF0000;
@@ -72,8 +72,8 @@ namespace SIKtec {
      */
     uint8_t BITMAP_BWR_COLOR_KERNEL::greylevel_thresh   = 30;
     uint8_t BITMAP_BWR_COLOR_KERNEL::red_r_thresh       = 18;  // Bigger then 18
-    uint8_t BITMAP_BWR_COLOR_KERNEL::red_g_thresh       = 12;  // Smaller then 12
-    uint8_t BITMAP_BWR_COLOR_KERNEL::red_b_thresh       = 4;   // Smaller then 4
+    uint8_t BITMAP_BWR_COLOR_KERNEL::red_g_thresh       = 18;  // Smaller then 18
+    uint8_t BITMAP_BWR_COLOR_KERNEL::red_b_thresh       = 12;   // Smaller then 12
     colorBits_t BITMAP_BWR_COLOR_KERNEL::black_color    = 0x0000;
     colorBits_t BITMAP_BWR_COLOR_KERNEL::white_color    = (colorBits_t)0xFFFF;
     colorBits_t BITMAP_BWR_COLOR_KERNEL::red_color      = (colorBits_t)0xF800;

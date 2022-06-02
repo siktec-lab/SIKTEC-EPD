@@ -324,7 +324,7 @@ protected:
 //-----------------------------------------------------------------------------------------//
 // INCLUDE DEFAULT DRIVERS:
 //-----------------------------------------------------------------------------------------//
-//NOTE: this should not affect the final size - the linker will drop dead code.
+//NOTE: this should not affect the final size - the linker will drop dead code, hopefully.
 #include "drivers/SIKTEC_EPD_G4.h"
 #include "drivers/SIKTEC_EPD_3CU.h"
 #include "drivers/SIKTEC_EPD_3CS.h"

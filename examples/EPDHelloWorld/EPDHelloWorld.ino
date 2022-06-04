@@ -15,28 +15,30 @@
     -> SSD1619 -> SIKTEC_EPD_3CS
 *******************************************************************************/
 /*****************************      EXAMPLE       *****************************
+ * Hello world Example
+ * Will Print text on the EPD.
+ * Will print a color map.
+ * Will draw some circle patterns on the EPD.
  * 
- * 
- * 
- * 
- * 
+ * Select the correct board to compile for by uncommenting on line 32
+ * You can enable disable test feature by un/commenting on line 40
  * 
 *******************************************************************************/
+
 /**********************************************************************************************/
-// FOR TESTING & DEBUGGING:
+// Select your board:
 /**********************************************************************************************/
-// #define SIKTEC_EPD_DEBUG
+// #define SIKTEC_BOARD_G4
+#define SIKTEC_BOARD_3CU
+// #define SIKTEC_BOARD_3CS
+
+/**********************************************************************************************/
+// WHICH TESTS TO PERFORM: 
+// comment to disable
+/**********************************************************************************************/
 #define QC_PRINT_TEXT
 #define QC_COLOR_MAP
 #define QC_SAND_CIRCLES
-
-/**********************************************************************************************/
-// TEST WITH TIS BOARD:
-/**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
-// #define SIKTEC_BOARD_3CU
-#define SIKTEC_BOARD_3CS
-
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -53,36 +55,36 @@ using namespace SIKtec;
 // epd_pins_t { edp_cs, sram_cs, dc, rst, busy }
 /**********************************************************************************************/
 #if defined(ESP32)
-    
+    #define CUR_BOARD "ESP32"
     #define EPD_PINS {16, 17, 4, 13, 15}
-
 #elif defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    
+    #define CUR_BOARD "MEGA"
     #define EPD_PINS {8, 9, 10, 11, 12}
-
 #elif defined(ARDUINO_AVR_UNO) ||  defined(ARDUINO_AVR_NANO) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
-
+    #define CUR_BOARD "328P"
     #define EPD_PINS {9, 8, 7, 6, 5}
-
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega16U4__)
-
+    #define CUR_BOARD "LEONARDO"
     #define EPD_PINS {9, 8, 7, 6, 5}
-
 #elif defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
-
+    #define CUR_BOARD "DUE"
     #define EPD_PINS {9, 8, 7, 6, 5}
-
 #endif
 
 epd_pins_t epd_pins = EPD_PINS;
+
 /**********************************************************************************************/
 // DECLARE OBJECTS:
 /**********************************************************************************************/
 
-
-// SIKTEC_EPD_G4 *board;
-// SIKTEC_EPD_3CU *board;
-SIKTEC_EPD_3CS *board;
+//The EPD Board Driver:
+#if defined(SIKTEC_BOARD_G4) 
+    SIKTEC_EPD_G4 *board;
+#elif defined(SIKTEC_BOARD_3CU) 
+    SIKTEC_EPD_3CU *board;
+#elif defined(SIKTEC_BOARD_3CS)
+    SIKTEC_EPD_3CS *board;
+#endif
 
 
 //Forward declaration for helper functions used by this example:
@@ -90,30 +92,27 @@ void draw_text(int16_t, int16_t, uint16_t, const char[]);
 void color_map(const int16_t, const int16_t, const int16_t, const int16_t, const int16_t);
 void sand_circles(const uint16_t, const uint16_t, const uint16_t);
 
-//Setup: Serial -> EPD initialize.
+//Setup:
 void setup() {
 
     //Initialize Serial:
-    Serial.begin(115200);
+    Serial.begin(9600);
     while (!Serial) { delay(10); }
-    
-    delay(2000);
 
     //Initialize EPD:
-    ////TODO: remove later for debugging
-    
+    Serial.println(CUR_BOARD);
     Serial.println("Initialize EPD:");
-    Serial.print("MOSI: ");
-    Serial.println(MOSI);
-    Serial.print("MISO: ");
-    Serial.println(MISO);
-    Serial.print("SCK: ");
-    Serial.println(SCK);
 
-    // board = new SIKTEC_EPD_G4(epd_pins);
-    // board = new SIKTEC_EPD_3CU(epd_pins);
-    board = new SIKTEC_EPD_3CS(epd_pins);
-
+    #if defined(SIKTEC_BOARD_G4) 
+        board = new SIKTEC_EPD_G4(epd_pins);
+        board->begin(EPD_MODE_GRAYSCALE4);
+    #elif defined(SIKTEC_BOARD_3CU) 
+        board = new SIKTEC_EPD_3CU(epd_pins);
+        board->begin(EPD_MODE_TRICOLOR);
+    #elif defined(SIKTEC_BOARD_3CS)
+        board = new SIKTEC_EPD_3CS(epd_pins);
+        board->begin(EPD_MODE_TRICOLOR);
+    #endif
 
     //For debugging - check if we are using sram or not:
     if (board->is_using_sram()) {
@@ -122,23 +121,15 @@ void setup() {
         Serial.println("EPD Initialized - NOT USING SRAM");
     }
 
-    //Start communication with EPD and set the color mode:
-    //This can be called multiple time to change the color mode on dynamically
-    
-    // board->begin(EPD_MODE_MONO);
-    board->begin(EPD_MODE_TRICOLOR);
-    // board->begin(EPD_MODE_GRAYSCALE4);
-
 }
 
 
 void loop() {
     
-    Serial.println("IN LOOP >>> "); //TODO: remove later for debugging
     //Clear the buffer -> all will be white:
     board->clearBuffer();
 
-    // //Set text size:
+    //Set text size:
     board->setTextSize(2);
 
     #ifdef QC_PRINT_TEXT

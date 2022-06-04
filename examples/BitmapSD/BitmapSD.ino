@@ -134,7 +134,7 @@ void setup() {
     //Those are the extenssion we will use:
     char ext_lower[] = ".bmp";
     char ext_upper[] = ".BMP";
-    
+    int  drawn = 0;
     //Loop through the files in the SD Root directory:
     while (file.openNext(sd_card.vwd(), O_RDONLY)) {
 
@@ -150,24 +150,42 @@ void setup() {
                 //Parse the Bitmap:
                 SIKTEC_EPD_BITMAP bitmapTest = SIKTEC_EPD_BITMAP(&sd_card, file);
 
-                //Clear the Drawing Buffer:
-                board->clearBuffer();
+                //Check its loaded and supported:
+                if (bitmapTest.isValid()) {
+                    
+                    //Clear the Drawing Buffer:
+                    board->clearBuffer();
 
-                //Draw bitmap directly to the EPD:
-                bitmapTest.drawBitmapFiltered(BITMAP_FILTER::AUTO, 0, 0, board, 0, 0, 0, 0);
+                    //Draw bitmap directly to the EPD:
+                    EPD_BITMAP_STATUS draw = bitmapTest.drawBitmapFiltered(BITMAP_FILTER::AUTO, 0, 0, board, 0, 0, 0, 0);
 
-                //Update display to show the result:
-                board->display(true);
+                    //Check wether bitmap was successfully drawn?
+                    if (draw != EPD_BITMAP_STATUS::DONE) {
+                        Serial.println("Can't draw this Bitmap... Sorry :(");
+                    }
 
+                    // Update display to show the result:
+                    board->display(true);
+
+                    drawn++;
+
+                } else {
+                    Serial.println("This bitmap is not supported... Sorry :(");
+                }
                 //Wait so we can see the result:
-                delay(5000);
+                delay(4000);
 			}
         }
         file.close();
     }
+
+    Serial.print("Finished - Drawn : ");
+    Serial.print(drawn);
+    Serial.println(" Bitmaps."); 
 }
 
 
 void loop() {
+    
     while (1) { ; };
 }

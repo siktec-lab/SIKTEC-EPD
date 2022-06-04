@@ -26,11 +26,18 @@
 //------------------------------------------------------------------------//
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
-#define EPD_3CU_BUSY_DELAY    500
-#define EPD_3CU_REFRESH_DELAY 13000 
-#define EPD_3CU_WIDTH         300
-#define EPD_3CU_HEIGHT        400
-#define EPD_3CU_RAM_SIZE_Kib 256
+#define EPD_3CU_BUSY_DELAY       500
+#define EPD_3CU_BUSY_RETRY_TIMES 120
+#define EPD_3CU_REFRESH_DELAY    20000 
+#define EPD_3CU_WIDTH            300
+#define EPD_3CU_HEIGHT           400
+#define EPD_3CU_RAM_SIZE_Kib     256
+
+#ifndef PRINT_DEBUG_BUFFER
+#define PRINT_DEBUG_BUFFER(__template, ...) \
+    sprintf(debug_message, __template, __VA_ARGS__); \
+    Serial.print(debug_message)
+#endif
 
 namespace SIKtec {
 
@@ -116,13 +123,13 @@ private:
      */
     inline void _init() {
         // Set buffers size: 
-        //SH: added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
+        //NOTE: shlomi - added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
         this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
         this->buffer2_size = this->buffer1_size;
 
         #if SIKTEC_EPD_DEBUG
             PRINT_DEBUG_BUFFER(
-                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
+                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n",
                 this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
                 this->buffer1_size, this->buffer2_size
             );
@@ -199,18 +206,49 @@ public:
         #endif
 
         //Check if we really need to powerUp:
-        if (this->epdPower) return;
+        if (this->epdPower) {
+            #if SIKTEC_EPD_DEBUG
+                Serial.println(" - EPD Is allready powered on.");
+            #endif
+            delay(50);
+            return;
+        }
+
+        #if SIKTEC_EPD_DEBUG
+            Serial.println();
+        #endif
+
+        uint8_t tries = 1;
+
+        retry_init: 
 
         //First hard reset:
         this->hardwareResetEPD();
 
+        //Init code default or other:
         const uint8_t *init_code = uc8276_default_init_code;
-
         if (this->_epd_init_code != NULL) {
             init_code = this->_epd_init_code;
         }
-        this->EPD_commandList(init_code);
-        
+
+        //Send init and LUT:
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("Sending Init Sequence...");
+        #endif
+
+        if (!this->EPD_commandList(init_code)) {
+            tries++;
+            #if SIKTEC_EPD_DEBUG
+                Serial.print("Init Failed! - Retrying ");
+                Serial.println(tries);
+            #endif
+            goto retry_init;
+        }
+
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("Init Sequence Done.");
+        #endif
+
         this->epdPower = true;
 
         delay(20);
@@ -225,14 +263,16 @@ public:
         this->EPD_command(UC8276_DISPLAY_REFRESH);
         delay(50);
         this->busy_wait();
+        //If no busy pin attached wait a fixed amount of time
         if (this->pins.busy <= -1) {
             delay(this->default_refresh_delay);
         }
     }
 
     /**
-     * @brief power down the display - deep sleep if possible
-     * 
+     * @brief power down the display
+     *        power down will send command VCOM and POWEROFF
+     *        will put in sleep only if reset pin is set.
      * @returns void
      */
     inline void powerDown() {
@@ -265,11 +305,9 @@ protected:
 
     /**
      * @brief Send the specific command to start writing to EPD display RAM
-     * 
      * This will return a byte that is read while sending the data -> its usefull when bridging two SPI devices 
      * 
      * @param index The index for which buffer to write (0 or 1 or tri-color displays) Ignored for monochrome displays.
-     * 
      * @returns The byte that is read from SPI at the same time as sending the command
      */
     inline uint8_t writeRAMCommand(uint8_t index) {
@@ -317,13 +355,22 @@ protected:
      * 
      * busy pin is LOW while Driver is working.
      * wait for HIGH.
-     * @returns void
+     * @returns bool
      */
-    inline void busy_wait(uint16_t moredelay = 0) {
+    inline bool busy_wait(uint16_t moredelay = 0) {
+        #if SIKTEC_EPD_DEBUG
+            Serial.print("Waiting for busy signal.");
+        #endif
+        uint16_t test = 0;
         if (this->pins.busy >= 0) {
             while (!digitalRead(this->pins.busy)) { // wait for busy HIGH
-                this->EPD_command(UC8276_GET_STATUS);
-                delay(100);
+                delay(200);
+                if (test++ > EPD_3CU_BUSY_RETRY_TIMES) {
+                    return false;
+                }
+                #if SIKTEC_EPD_DEBUG
+                    Serial.print(".");
+                #endif
             }
         } else {
             delay(EPD_3CU_BUSY_DELAY);
@@ -331,6 +378,10 @@ protected:
         if (moredelay > 0) {
             delay(moredelay);
         }
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("READY!");
+        #endif
+        return true;
     }
 
 };

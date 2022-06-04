@@ -30,12 +30,18 @@
 //------------------------------------------------------------------------//
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
+#define EPD_3CS_BUSY_DELAY       500
+#define EPD_3CS_BUSY_RETRY_TIMES 75
+#define EPD_3CS_REFRESH_DELAY    15000 
+#define EPD_3CS_WIDTH            300
+#define EPD_3CS_HEIGHT           400
+#define EPD_3CS_RAM_SIZE_Kib     256
 
-#define EPD_3CS_BUSY_DELAY    500
-#define EPD_3CS_REFRESH_DELAY 20000 
-#define EPD_3CS_WIDTH         300
-#define EPD_3CS_HEIGHT        400
-#define EPD_3CS_RAM_SIZE_Kib 256
+#ifndef PRINT_DEBUG_BUFFER
+#define PRINT_DEBUG_BUFFER(__template, ...) \
+    sprintf(debug_message, __template, __VA_ARGS__); \
+    Serial.print(debug_message)
+#endif
 
 namespace SIKtec {
 
@@ -120,13 +126,13 @@ private:
      */
     inline void _init() {
         // Set buffers size:
-        //SH: added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
+        //NOTE: shlomi - added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
         this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
         this->buffer2_size = this->buffer1_size;
 
         #if SIKTEC_EPD_DEBUG
             PRINT_DEBUG_BUFFER(
-                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n ",
+                "Allocating Buffer:\n   - screen -> %u,%u\n   - fixed -> %u,%u\n   - buf1 -> %u\n   - buf2 -> %u\n",
                 this->epd_width, this->epd_height, this->fixed8_width, this->fixed8_height,
                 this->buffer1_size, this->buffer2_size
             );
@@ -202,7 +208,21 @@ public:
         #endif
 
         //Check if we really need to powerUp:
-        if (this->epdPower) return;
+        if (this->epdPower) {
+            #if SIKTEC_EPD_DEBUG
+                Serial.println(" - EPD Is allready powered on.");
+            #endif
+            delay(50);
+            return;
+        }
+
+        #if SIKTEC_EPD_DEBUG
+            Serial.println();
+        #endif
+
+        uint8_t tries = 1;
+
+        retry_init: 
 
         //First hard reset:
         this->hardwareResetEPD();
@@ -213,11 +233,27 @@ public:
         if (this->_epd_init_code != NULL) {
             init_code = this->_epd_init_code;
         }
-        this->EPD_commandList(init_code);
+
+        //Send init and LUT:
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("Sending Init Sequence...");
+        #endif
+        if (!this->EPD_commandList(init_code)) {
+            tries++;
+            #if SIKTEC_EPD_DEBUG
+                Serial.print("Init Failed! - Retrying ");
+                Serial.println(tries);
+            #endif
+            goto retry_init;
+        }
 
         //Set the RAM window as defined for scanning:
         this->setRAMWindow(0, 0, this->fixed8_height - 1, this->fixed8_width - 1);
         
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("Init Sequence Done.");
+        #endif
+
         this->epdPower = true;
 
         delay(20);
@@ -234,6 +270,7 @@ public:
         this->EPD_command(SSD1619_DISP_CTRL2, buf, 1);
         this->EPD_command(SSD1619_MASTER_ACTIVATE);
         this->busy_wait();
+        //If no busy pin attached wait a fixed amount of time
         if (this->pins.busy <= -1) {
             delay(this->default_refresh_delay);
         }
@@ -262,7 +299,7 @@ public:
             /*
                 It resets the commands and parameters to their S/W Reset default values except -Deep Sleep Mode
                 During operation, BUSY pad will output high.
-                Note: RAM are unaffected by this command.
+                Note: RAM is not effected by this command.
             */
             this->EPD_command(SSD1619_SW_RESET);
             this->busy_wait();
@@ -346,12 +383,22 @@ protected:
      * @brief  wait for busy signal to end
      *         busy pin is LOW while Driver is working. wait for HIGH.
      * @param moredelay - additional delay to wait
-     * @returns void
+     * @returns bool
      */
-    inline void busy_wait(uint16_t moredelay = 0) {
+    inline bool busy_wait(uint16_t moredelay = 0) {
+        #if SIKTEC_EPD_DEBUG
+            Serial.print("Waiting for busy signal.");
+        #endif
+        uint16_t test = 0;
         if (this->pins.busy >= 0) {
             while (digitalRead(this->pins.busy)) { // wait for busy low
-                delay(50);
+                delay(200);
+                if (test++ > EPD_3CS_BUSY_RETRY_TIMES) {
+                    return false;
+                }
+                #if SIKTEC_EPD_DEBUG
+                    Serial.print(".");
+                #endif
             }
         } else {
             delay(EPD_3CS_BUSY_DELAY);
@@ -359,6 +406,10 @@ protected:
         if (moredelay > 0) {
             delay(moredelay);
         }
+        #if SIKTEC_EPD_DEBUG
+            Serial.println("READY!");
+        #endif
+        return true;
     }
 };
 

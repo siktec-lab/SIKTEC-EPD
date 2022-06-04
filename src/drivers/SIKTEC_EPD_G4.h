@@ -27,7 +27,7 @@
 // GENERAL EPD CONSTANTS:
 //------------------------------------------------------------------------//
 #define EPD_G4_BUSY_DELAY       500
-#define EPD_G4_BUSY_RETRY_TIMES 20
+#define EPD_G4_BUSY_RETRY_TIMES 25
 #define EPD_G4_REFRESH_DELAY    3000 
 #define EPD_G4_WIDTH            300
 #define EPD_G4_HEIGHT           400
@@ -125,7 +125,7 @@ private:
     inline void _init() {
 
         // Set buffers size:
-        //SH: added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
+        //NOTE: shlomi - added cast to uint32 to fix bugs with compilers overflowing this basically trying to result the multiplication to uint16 - observed on leonardo 
         this->buffer1_size = (uint32_t)this->fixed8_width * this->fixed8_height / 8;
         this->buffer2_size = this->buffer1_size;
 
@@ -270,7 +270,7 @@ public:
         }
 
         #if SIKTEC_EPD_DEBUG
-            Serial.println(" Init Sequence Done.");
+            Serial.println("Init Sequence Done.");
         #endif
         
         this->epdPower = true;
@@ -287,6 +287,7 @@ public:
         this->EPD_command(IL0398_DISPLAY_REFRESH);
         delay(50);
         this->busy_wait();
+        //If no busy pin attached wait a fixed amount of time
         if (this->pins.busy <= -1) {
             delay(this->default_refresh_delay);
         }
@@ -310,7 +311,7 @@ public:
         //Data buffer:
         uint8_t buf[4];
         // power off
-        buf[0] = 0xF7; // border floating
+        buf[0] = 0xF7; // disable VCOM
         this->EPD_command(IL0398_VCOM, buf, 1);
         this->EPD_command(IL0398_POWER_OFF);
         this->busy_wait();
@@ -366,10 +367,9 @@ protected:
         #if SIKTEC_EPD_DEBUG
             Serial.print("Waiting for busy signal.");
         #endif
-        int test = 0;
+        uint16_t test = 0;
         if (this->pins.busy >= 0) {
             while (!digitalRead(this->pins.busy)) { // wait for busy HIGH
-                //this->EPD_command(IL0398_GETSTATUS);
                 delay(200);
                 if (test++ > EPD_G4_BUSY_RETRY_TIMES) {
                     return false;

@@ -284,7 +284,7 @@ class BITMAP_BWR_COLOR_KERNEL {
             B <= BITMAP_BWR_COLOR_KERNEL::red_b_thresh
         ) {
             #if SIKTEC_EPD_DEBUG_BITMAP_KERNELS_PIXELS
-                PRINT_DEBUG_BUFFER("\nR %d G %d B %d --> %d\n", R, G, B, BITMAP_BWR_COLOR_KERNEL::red_color);
+                PRINT_DEBUG_BUFFER("\nR %d G %d B %d --> %d (Red)\n", R, G, B, BITMAP_BWR_COLOR_KERNEL::red_color);
             #endif
             return BITMAP_BWR_COLOR_KERNEL::red_color;
         } 
@@ -307,7 +307,7 @@ class BITMAP_BWR_COLOR_KERNEL {
         #endif
 
         #if SIKTEC_EPD_DEBUG_BITMAP_KERNELS_PIXELS
-            PRINT_DEBUG_BUFFER("\nR %d G %d B %d --> %d\n", R, G, B, grey);
+            PRINT_DEBUG_BUFFER("\nR %d G %d B %d --> %d (BW)\n", R, G, B, grey);
         #endif
 
         if (grey >= BITMAP_BWR_COLOR_KERNEL::greylevel_thresh)

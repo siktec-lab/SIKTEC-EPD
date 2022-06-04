@@ -64,7 +64,10 @@ enum BMP_VARIANT {
     BITMAPCOREHEADER_12     = 12,
     OS22XBITMAPHEADER_16    = 16,
     BITMAPINFOHEADER_40     = 40,
-    OS22XBITMAPHEADER_64    = 64
+    BITMAPINFOHEADE_ILLU_56 = 56, // Wild header - only seen in illustrator 16bpp 565
+    OS22XBITMAPHEADER_64    = 64,
+    BITMAPV4HEADER_108      = 108, 
+    BITMAPV5HEADER_124      = 124  
 };
 
 /**
@@ -132,6 +135,8 @@ typedef struct BMPInfoHeader {
     uint32_t  halftoning_par2  = 0;  
     uint32_t  color_encoding   = 0;  // 0 -> RGB 
     uint32_t  ignore_ident     = 0;
+    //+
+    //FOR GIMP support Photoshop
 } bmp_info_header_t;
 #pragma pack(pop)
 

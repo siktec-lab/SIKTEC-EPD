@@ -335,6 +335,18 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
 
     //FUTURE: add support for other compressions atleast RLE....
     if ( this->definition.info_header.compression == 0 ) {
+        //Simple uncompressed bitmap:
+        this->proccessUncompressed(
+            epd_x, epd_y, 
+            bmpStartRow, bmpStartCol,
+            loadWidth, loadHeight, 
+            epd, kernel
+        );
+    } else if (   this->definition.info_header.compression == 3 
+                && (this->definition.info_header.bpp == 16 || this->definition.info_header.bpp == 32)
+    ) {
+        // Observed in GIMP Bitmaps -> bpp 16, 32 is marked compressed....
+        // Its a not:
         this->proccessUncompressed(
             epd_x, epd_y, 
             bmpStartRow, bmpStartCol,
@@ -379,13 +391,18 @@ bmp_def_t SIKTEC_EPD_BITMAP::getBitmapDefinition(bool createPalette) {
                     
                     //Parse info header variant:
                     if (def.variant == BMP_VARIANT::BITMAPCOREHEADER_12) {
+                        //NOTE: we this manually as 12 sized has different struture:
                         def.info_header.header_size  = this->read32();
                         def.info_header.width        = (uint32_t)this->read16();
                         def.info_header.height       = (uint32_t)this->read16();
                         def.info_header.color_planes = this->read16();
                         def.info_header.bpp          = this->read16();
                     } else {
-                        this->file.read(&def.info_header, (size_t)def.variant);                            
+                        //NOTE: we limit this as we (for now) dont use all the extra fields 
+                        // That for some formats are used. In the future while adding compression support and masking 
+                        // We need to change that 
+                        size_t read_size = def.variant <= 64 ? def.variant : 64;
+                        this->file.read(&def.info_header, read_size);                            
                     }
                     
                     //Set height fixed:
@@ -399,10 +416,17 @@ bmp_def_t SIKTEC_EPD_BITMAP::getBitmapDefinition(bool createPalette) {
                     //Some BMP docs says that biColors can be greater then zero which 
                     //Defines the palette color size - But in this case they wont be used 
                     //unless its bpp <= 8.
-                    if (def.info_header.bpp <= 8) {
+                    // If colors is defind then we override bbb ^ 2 and use the defined color size....
+                    if (def.info_header.bpp <= 8 && def.info_header.colors == 0) {
                         def.palette_size = 1 << def.info_header.bpp;
+                    } else if (def.info_header.bpp <= 8 && def.info_header.colors) {
+                        if (def.info_header.colors <= (1 << def.info_header.bpp)) {
+                            def.palette_size = def.info_header.colors;
+                        } else { 
+                            def.palette_size = (1 << def.info_header.bpp);
+                        }
                     } else {
-                        def.palette_size = def.info_header.colors;
+                        def.palette_size = 0;
                     }
 
                     //Set palette if needed:
@@ -411,7 +435,11 @@ bmp_def_t SIKTEC_EPD_BITMAP::getBitmapDefinition(bool createPalette) {
                         //Store the color as 32bit uinteger -
                         //BMP format is BGRA or BGR this will flip and store ARGB
                         //First make sure what is the used color size:
-                        uint32_t bytes_to_pixels_array = def.file_header.array_start - this->file.curPosition();
+                        uint32_t pos_palette_array = BITMAP_FILEHEADER_SIZE + def.info_header.header_size;
+                        uint32_t bytes_to_pixels_array = def.file_header.array_start - pos_palette_array;
+
+                        this->seekSet(pos_palette_array); //set pos at end of header just in case there is padding to avoid;
+
                         if (bytes_to_pixels_array <  def.palette_size * 4) {
                             for (uint32_t i = 0; i < def.palette_size; ++i) {
                                 def.palette[i] = bitmap_color_result == BITMAP_COLOR_MODE::COLOR565 
@@ -464,8 +492,14 @@ BMP_VARIANT SIKTEC_EPD_BITMAP::bitmapVariant() {
             return BMP_VARIANT::OS22XBITMAPHEADER_16;
         case BMP_VARIANT::BITMAPINFOHEADER_40:
             return BMP_VARIANT::BITMAPINFOHEADER_40;
+        case BMP_VARIANT::BITMAPINFOHEADE_ILLU_56:
+            return BMP_VARIANT::BITMAPINFOHEADE_ILLU_56;
         case BMP_VARIANT::OS22XBITMAPHEADER_64:
             return BMP_VARIANT::OS22XBITMAPHEADER_64;
+        case BMP_VARIANT::BITMAPV4HEADER_108:
+            return BMP_VARIANT::BITMAPV4HEADER_108;
+        case BMP_VARIANT::BITMAPV5HEADER_124:
+            return BMP_VARIANT::BITMAPV5HEADER_124;
         default :  
             return BMP_VARIANT::NOT_SUPPORTED;
     }
@@ -563,7 +597,8 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                     epd->drawPixel(
                         epd_col++, epd_row, 
                         this->pixelColorProccess(
-                            this->definition.palette[pixel1], 
+                            //NOTE: shlomi - added this for security, in case the file (pixel array is curoptted) we want to avoid reading from undefined palette memory
+                            (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
                             kernel
                         )
                     );
@@ -578,7 +613,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                     epd->drawPixel(
                         epd_col++, epd_row, 
                         this->pixelColorProccess(
-                            this->definition.palette[pixel1], 
+                            (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
                             kernel
                         )
                     );
@@ -591,7 +626,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                 epd->drawPixel(
                     epd_col++, epd_row, 
                     this->pixelColorProccess(
-                        this->definition.palette[pixel1],
+                        (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
                         kernel
                     )
                 );

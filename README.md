@@ -1,5 +1,5 @@
 # SIKTEC-EPD
- ePaper / eInk display driver to easily integrate SIKTEC displays.<br />
+ ePaper / eInk display driver to easily integrate SIKTEC EPD displays.<br />
  Adafruit GFX compatible with optional external SRAM use.
 
 <br/>
@@ -7,7 +7,8 @@
 ## Description
 This library seamlessly integrates Epaper displays with SRAM support and exposes GFX drawing functions. <br />
 Its mainly for using SIKTEC display boards and that features several different EPD drivers which are all included in this library. <br />
-The library is designed to be simple yet very flexible and can be used for any board that is driven by one of the implemented drivers.   
+The library is designed to be simple yet very flexible and can be used for any board that is driven by one of the implemented drivers.<br />
+We have included a robust Bitmap library - It supports any (uncompressed) Bitmap which is directly drawn on the EPD. You don't need to prep your bitmaps, the library works with any resolution and does the translation on the fly.
 <br />
 
 <a id="drivers-epd"></a>
@@ -31,7 +32,7 @@ The library is designed to be simple yet very flexible and can be used for any b
 | NANO     | {9, 8, 7, 6, 5}                                                  | Arduino IDE, PlatformIO      |
 | MEGA     | {8, 9, 10, 11, 12}                                               | Arduino IDE, PlatformIO      |
 | LEONARDO | {9, 8, 7, 6, 5}                                                  | Arduino IDE, PlatformIO      |
-| DUE      | 16, 4, 13, 15, 17                                                | Arduino IDE, PlatformIO      |
+| DUE      | {9, 8, 7, 6, 5}                                                | Arduino IDE, PlatformIO      |
 
 <br />
 
@@ -48,6 +49,7 @@ The library is designed to be simple yet very flexible and can be used for any b
 ## Table of Contents:
 - [Quick Installation](#installation)
 - [Example Included](#examples)
+- [Understanding IOREF Pin](#understandig-ioref)
 - [Decalring SIKTEC_EPD](#declaring-epd)
 - [Controling the EPD](#controling-epd)
 - [Drawing](#drawing-epd)
@@ -84,7 +86,26 @@ You can install the library through one of the following:
 - **EPDHelloWorld.ino** - An example which can be compiled with or without SRAM - Will demonstrate printing text to the EPD, Drawing a color pallet, Drawing some cool circles. The code is well commented so feel free to go through the source code.
 > :pushpin: To disable the SRAM Set the pin as -1 
 
+- **BitmapSD.ino** - An example which draws example bitmaps of different types on the EDP, The example expects an SD-Card connected with some Bitmaps in the root folder - You can use the example Bitmaps in the folder `extras/test_images`.
+
+- **BitmapSprite.ino** - An example which draws a "Sprite like" Bitmap tiled on the EPD screen - Very powerfull feature that allows you to pack all the graphics into one bitmap - You can use the example Bitmaps in the folder `extras/sprites`.
+
+- **DebugRun.ino** - This Simple sketch is used to test EPD's - for a better HelloWorld
+example load EPDHelloWorld.ino. In this example we are testing more advanced SRAM use cases that can be used later For advanced features implementation of the EPD.
 <br/>
+
+<a id="understandig-ioref"></a>
+
+## Understanding IOREF Pin:
+
+[:arrow_up_small: Return](#table-contents)
+
+Genuine SIKTEC-EPD Boards has an "IOREF" pin. This pin is used to determine the required IO logic Voltage level of the connected MCU. For AVR boards simply connect their own IOREF pin - If there 
+Is no IOREF pin connect to 3.3 or 5V according to the MCU IO voltage.<br />
+Internally the EPD Board is 3.3V Logic - and has a logic level shifter so It can tollerate a wide range of input voltage.<br />
+> :pushpin: For best performance and stability supply 5V (vin) to the EPD board Regardless of the IOREF voltage. 
+
+<br />
 
 <a id="declaring-epd"></a>
 
@@ -133,19 +154,16 @@ void setup() {
 
 <br/>
 
-
-
-
 <a id="controling-epd"></a>
 
 ## Controling the EPD:
 
 [ :arrow_up_small: Return](#table-contents)
 
-There are 4 main methods used to control the EPD. Each one of the can be called several time and used anywhere except from withinn ISR (Interrupts).<br />
+There are 5 main methods used to control the EPD. Each one can be called several time and can be used anywhere except from withinn an ISR function (Interrupts).<br />
 
-**`.begin(epd_mode_t mode = EPD_MODE_MONO)`** This method starts the communication with EPD and should be called at least one after intialization before doing anything with EPD.
-There are several color modes - you check the [table](#drivers-epd) above to see the matching color mode for you driver.
+**`.begin(epd_mode_t mode = EPD_MODE_MONO)`** This method starts the communication with the EPD and should be called at least once after initialization before doing anything with the EPD.<br />
+There are several color modes - You can check the [table](#drivers-epd) above to see the matching color modes for your display driver.
 
 ```cpp
 ...
@@ -164,7 +182,7 @@ board->begin(EPD_MODE_TRICOLOR);
 
 <br />
 
-**`.clearBuffer()`** This method clears the entire drawing buffer - It won trigger a refresh.
+**`.clearBuffer()`** This method clears the entire drawing buffer - It won't trigger a refresh.
 
 ```cpp
 ...
@@ -177,7 +195,7 @@ board->clearBuffer();
 
 <br />
 
-**`.clearDisplay()`** This method clears the display - Basically a clearBuffer + Screen Update.
+**`.clearDisplay()`** This method clears the display - Basically a `clearBuffer` + `display`.
 
 ```cpp
 ...
@@ -188,6 +206,33 @@ board->clearDisplay();
 ...
 ```
 > :pushpin: `clearDisplay` is a full refresh so only use it when you actually need to display an empty screen.<br />
+
+<br />
+
+**`board->setRotation(uint8_t)`** This methods sets the rotation of the EDP and will be used internally to auto translate the pixels to the correct orientation. The rotation parameter can be 0, 1, 2 or 3 - Default is 1 (portrait mode).
+
+```cpp
+...
+
+//Set the EPD Rotation:
+board->setRotation(1); // Portrait mode
+
+...
+```
+<br />
+
+**`board->display(bool sleep = false)`** This method updates the EPD and transmits all buffered pixels 
+from SRAM to the EPD. The method Expects a boolean which indicates whether to put the EPD into sleep or not. <br /> You should always put the EPD into sleep after updating it to avoid damage.
+
+```cpp
+...
+
+//Update the EPD Display:
+board->display(true); // Put to sleep after
+
+...
+```
+> :pushpin: while the display is updated the EPD flashes several times - This is normal so don't panic. The update time varies between 2sec - 18sec depends on the EPD Type, Voltage and even Temperature.<br />
 
 <br/>
 
@@ -281,16 +326,20 @@ The display is powered on if its need when this method is called,
 
 [:arrow_up_small: Return](#table-contents)
 
-The library 3 macro define Flags that enables debugging. They should be defined BEFORE the library include.<br />
-Serial monitor will get all the captured data and events.
+The library used X defined Flags that enables debugging of various parts. They should be defined BEFORE the library include or even better as Compilation flags.<br />
+The default Serial monitor will print all the captured data and events.
 
-```cpp
+```TOML
     ...
-
-    #define SIKTEC_EPD_DEBUG
-    #define SIKTEC_EPD_DEBUG_PIXELS
-    #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 
-
+; 0 is disabled 1 is enabled
+; All defaults to 0
+build_flags = 
+	 -D SIKTEC_EPD_DEBUG=0                  ; enables debug features - Is mandatory for any below
+	 -D SIKTEC_EPD_DEBUG_COMMAND_LISTS=0    ; prints init sequence and lut commands
+	 -D SIKTEC_EPD_DEBUG_BITMAP=0           ; enables bitmap parsing debug features 
+	 -D SIKTEC_EPD_DEBUG_BITMAP_PIXELS=0    ; enables bitmap pixel scanning debug (use with small bitmaps) 
+	 -D SIKTEC_EPD_DEBUG_BITMAP_KERNELS_PIXELS=0 ; enables bitmap pixel translation debug (use with small bitmaps) 
+	 -D BITMAP_COLOR_RESULT_888=0           ; set color mode to 888 - the lib internally use 565 colors.
     ...
 ```
 

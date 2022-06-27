@@ -62,14 +62,15 @@ public:
      * @param DC    the data/command pin to use
      * @param RST   the reset pin to use
      * @param BUSY  the busy pin to use
-     * @param SCLK  the SCLK pin to use
-     * @param MISO  the MISO pin to use
-     * @param MOSI  the SID pin to use
+     * @param spi_clock  the SCLK pin to use
+     * @param spi_miso  the MISO pin to use
+     * @param spi_mosi  the SID pin to use
+     * @param clock_frequency the spi bus frequency -> for sram and epd controller
     */
     inline SIKTEC_EPD_3CU(
         int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
-        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
-    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY, spi_clock, spi_miso, spi_mosi) {
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency = EPD_SRAM_SPEED
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY, spi_clock, spi_miso, spi_mosi, clock_frequency) {
         this->_init();
     }
     
@@ -77,14 +78,15 @@ public:
      * @brief The SIKTEC EPD constructor when you you define your own SPI pins.
      * 
      * @param pins  the epd & sram pins
-     * @param SCLK  the SCLK pin to use
-     * @param MISO  the MISO pin to use
-     * @param MOSI  the SID pin to use
+     * @param spi_clock  the SCLK pin to use
+     * @param spi_miso  the MISO pin to use
+     * @param spi_mosi  the SID pin to use
+     * @param clock_frequency the spi bus frequency -> for sram and epd controller
     */
     inline SIKTEC_EPD_3CU(
         const epd_pins_t &pins, 
-        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
-    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins, spi_clock, spi_miso, spi_mosi) {
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency = EPD_SRAM_SPEED
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins, spi_clock, spi_miso, spi_mosi, clock_frequency) {
         this->_init();
     }
     
@@ -96,10 +98,14 @@ public:
      * @param DC    the data/command pin to use
      * @param RST   the reset pin to use
      * @param BUSY  the busy pin to use
+     * @param clock_frequency the spi bus frequency -> for sram and epd controller
+     * @param spi the SPI bus to use
     */
     inline SIKTEC_EPD_3CU(
-        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY
-    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY) {
+        int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY,
+        uint32_t clock_frequency = EPD_SRAM_SPEED,
+        SPIClass *spi = &SPI
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, CS, SRCS, DC, RST, BUSY, spi, clock_frequency) {
         this->_init();
     }
     
@@ -107,8 +113,14 @@ public:
      * @brief The SIKTEC EPD constructor when you you define the default Hardware SPI.
      * 
      * @param pins  the epd & sram pins
+     * @param clock_frequency the spi bus frequency -> for sram and epd controller
+     * @param spi the SPI bus to use
     */
-    inline SIKTEC_EPD_3CU(const epd_pins_t &pins) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins) {
+    inline SIKTEC_EPD_3CU(
+        const epd_pins_t &pins,
+        uint32_t clock_frequency = EPD_SRAM_SPEED,
+        SPIClass *spi = &SPI
+    ) : SIKTEC_EPD(EPD_3CU_WIDTH, EPD_3CU_HEIGHT, pins, spi, clock_frequency) {
         this->_init();
     }
 
@@ -186,8 +198,8 @@ public:
         this->layer_colors[EPD_WHITE] = 0b00; 
         this->layer_colors[EPD_BLACK] = 0b01; 
         this->layer_colors[EPD_RED]   = 0b10; 
-        this->layer_colors[EPD_GRAY]  = 0b10; 
-        this->layer_colors[EPD_DARK]  = 0b10; 
+        this->layer_colors[EPD_GRAY]  = 0b01; 
+        this->layer_colors[EPD_DARK]  = 0b01; 
         this->layer_colors[EPD_LIGHT] = 0b00; 
 
         this->setRotation(1);

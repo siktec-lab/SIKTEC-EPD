@@ -33,9 +33,17 @@ bool SIKTEC_EPD::_isInTransaction = false;
  * @param spi_clock the SCLK pin to use
  * @param spi_mosi the SID pin to use
  * @param spi_miso the MISO pin to use
+ * @param clock_frequency the spi bus frequency -> for sram and epd controller
 */
-SIKTEC_EPD::SIKTEC_EPD(int width, int height, int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi)
-    : SIKTEC_EPD(width, height, {CS, SRCS, DC, RST, BUSY}, spi_clock, spi_miso, spi_mosi) {}
+SIKTEC_EPD::SIKTEC_EPD(
+    int width, int height, 
+    int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+    int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency
+    ) : SIKTEC_EPD(
+        width, height, 
+        { CS, SRCS, DC, RST, BUSY }, 
+        spi_clock, spi_miso, spi_mosi, clock_frequency
+    ) {}
 
 /**
  * @brief constructor if using external SRAM chip and software SPI
@@ -46,9 +54,13 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, int8_t CS, int8_t SRCS, int8_t DC,
  * @param spi_clock the SCLK pin to use
  * @param spi_mosi the SID pin to use
  * @param spi_miso the MISO pin to use
+ * @param clock_frequency the spi bus frequency -> for sram and epd controller
 */
-SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi) 
-    : Adafruit_GFX(width, height) {
+SIKTEC_EPD::SIKTEC_EPD(
+    int width, int height, 
+    const epd_pins_t &pins, 
+    int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency
+    ) : Adafruit_GFX(width, height) {
     
     this->pins = pins;
 
@@ -63,12 +75,12 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, int8_t spi
 
     //Initiate SRAM:
     if (this->pins.sram_cs >= 0) {
-        this->sram = new SIKTEC_SRAM(spi_mosi, spi_miso, spi_clock, this->pins.sram_cs, 4000000); 
+        this->sram = new SIKTEC_SRAM(spi_mosi, spi_miso, spi_clock, this->pins.sram_cs, clock_frequency); 
         this->sram->begin();
         this->use_sram = this->sram->set_mode(SRAM_MODE::SRAM_SEQ_MODE);
         //Put in seq mode and check sram is ready to go:
         if (!this->use_sram) {
-            Serial.println("SRAM MODE FAILED");
+            Serial.println("SRAM INIT FAILED");
             this->sram->print_status();
         }
     } else {
@@ -78,7 +90,7 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, int8_t spi
     //Set spi device:
     this->_spi = new SIKTEC_SPI(
         this->pins.epd_cs, spi_clock, spi_miso, spi_mosi, 
-        4000000,                // frequency
+        clock_frequency,        // frequency
         SPI_BITORDER_MSBFIRST,  // bit order
         SPI_MODE0               // data modespi;
     );
@@ -111,9 +123,13 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, int8_t spi
  * @param RST the reset pin to use
  * @param BUSY the busy pin to use
  * @param spi the SPI bus to use
+ * @param clock_frequency the spi bus frequency -> for sram and epd controller
 */
-SIKTEC_EPD::SIKTEC_EPD(int width, int height, int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, SPIClass *spi)
-            : SIKTEC_EPD(width, height, {CS, SRCS, DC, RST, BUSY}, spi) {}
+SIKTEC_EPD::SIKTEC_EPD(
+    int width, int height, 
+    int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
+    SPIClass *spi, uint32_t clock_frequency
+    ) : SIKTEC_EPD(width, height, { CS, SRCS, DC, RST, BUSY }, spi, clock_frequency) {}
 
 /**
  * @brief constructor if using on-chip SRAM and hardware SPI
@@ -122,12 +138,11 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, int8_t CS, int8_t SRCS, int8_t DC,
  * @param height the height of the display in pixels
  * @param pins the pin definition
  * @param spi the SPI bus to use
+ * @param clock_frequency the spi bus frequency -> for sram and epd controller
 */
-SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *spi) 
+SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *spi, uint32_t clock_frequency) 
     : Adafruit_GFX(width, height) {
-
     this->pins = pins;
-
     //Save the calculated raw dim - height should be devisible by 8:
     //This save many many many calculations later mostly in address calculation and draw pixels
     this->fixed8_width  = width;
@@ -136,30 +151,27 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *
     } else {
         this->fixed8_height = height;
     }
-
     //Initiate SRAM:
     if (this->pins.sram_cs >= 0) {
-        this->sram = new SIKTEC_SRAM(this->pins.sram_cs, spi); 
+        this->sram = new SIKTEC_SRAM(this->pins.sram_cs, spi, clock_frequency); 
         this->sram->begin();
         this->use_sram = this->sram->set_mode(SRAM_MODE::SRAM_SEQ_MODE);
         //Put in seq mode and check sram is ready to go:
         if (!this->use_sram) {
-            Serial.println("SRAM MODE FAILED");
+            Serial.println("SRAM INIT FAILED");
             this->sram->print_status();
         }
     } else {
         this->use_sram = false;
     }
-
     //Set spi device:
     this->_spi = new SIKTEC_SPI(
         this->pins.epd_cs,      // EPD cs
-        4000000,                // frequency
+        clock_frequency,         // frequency
         SPI_BITORDER_MSBFIRST,  // bit order
         SPI_MODE0,              // data modespi;
         spi
     );
-
     //Set inital values:
     this->buffer1_size      = 0;
     this->buffer2_size      = 0;
@@ -171,7 +183,6 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *
     this->buffer2           = nullptr;
     this->color_buffer      = nullptr;
     this->black_buffer      = nullptr;
-
     #if SIKTEC_EPD_DEBUG
         Serial.println("initialized SIKTEC_EPD");
     #endif
@@ -219,6 +230,54 @@ epd_sram_space_t SIKTEC_EPD::getFreeSramSpace(uint32_t assumeTotalSizeKib)  {
         bitsRemaining / 8, 
         (uint16_t)(this->buffer2_addr + this->buffer2_size + 1)
     };
+}
+
+/**
+ * @brief get additional SRAM/RAM available space in Kib (kilo-binary bits)
+ * 
+ * @param assumeTotalSizeKib 
+ * @return epd_sram_space_t free space in Kib and Bytes and address
+ */
+uint16_t SIKTEC_EPD::allocateSramArrayBuffer(const uint16_t num, const uint16_t ele_bytes)  {
+    if (this->use_sram) {
+        epd_sram_space_t space = this->getFreeSramSpace();
+        if (space.bytes > (num * ele_bytes)) {
+            this->ram_buffer_element_size = ele_bytes;
+            return space.address;
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief get additional SRAM available space in Kib (kilo-binary bits)
+ * 
+ * @param assumeTotalSizeKib 
+ * @return epd_sram_space_t free space in Kib and Bytes and address
+ */
+uint16_t SIKTEC_EPD::releaseSramArrayBuffer()  {
+    if (this->use_sram) {
+        this->ram_buffer_element_size = 1;
+    }
+    return 0;
+}
+
+bool SIKTEC_EPD::getSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *out, const uint16_t num)  {
+    if (this->use_sram) {
+        for (uint16_t i = 0; i < num; ++i)
+            this->sram->read(address + index * this->ram_buffer_element_size, out, this->ram_buffer_element_size);
+        return true;
+    }
+    return false;
+}
+
+bool SIKTEC_EPD::setSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *in, const uint16_t num)  {
+    if (this->use_sram) {
+        for (uint16_t i = 0; i < num; ++i)
+            this->sram->write(address + index * this->ram_buffer_element_size, in, this->ram_buffer_element_size);
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -303,8 +362,8 @@ void SIKTEC_EPD::hardwareResetEPD() {
  * this is the virtual override of gfx derived lib and all drawing
  * methods will call this.
  * 
- * @param x the x axis position
- * @param y the y axis position
+ * @param x the x axis coordinate
+ * @param y the y axis coordinate
  * @param color the color of the pixel
  * 
  * @returns void
@@ -323,7 +382,6 @@ void SIKTEC_EPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
     //Save the memory address of black and color to temp bufs:
     if (this->use_sram) {
-
         black_c = this->sram->read8(pixel.sram_black);
         black_pBuf = &black_c;
         color_c = this->sram->read8(pixel.sram_color);
@@ -370,8 +428,8 @@ void SIKTEC_EPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
 /**
  * @brief check if pixel is in bounds of display area
  * 
- * @param x position
- * @param y position
+ * @param x coordinate
+ * @param y coordinate
  * @return true 
  * @return false 
  */
@@ -382,8 +440,8 @@ bool SIKTEC_EPD::pixelInBounds(const int16_t x, const int16_t y) {
 /**
  * @brief calculates the address offset of x,y pixel coordinates
  * 
- * @param x position
- * @param y position
+ * @param x coordinate
+ * @param y coordinate
  * @return uint16_t the offset -> always positive can be 0
  */
 uint16_t SIKTEC_EPD::getPixelAddressOffset(const int16_t x, const int16_t y) {
@@ -394,8 +452,8 @@ uint16_t SIKTEC_EPD::getPixelAddressOffset(const int16_t x, const int16_t y) {
 /**
  * @brief get a pixel address struct
  * 
- * @param x position 
- * @param y position 
+ * @param x coordinate 
+ * @param y coordinate 
  * @return SIKTEC_EPD::pixelAddress_t 
  */
 SIKTEC_EPD::pixelAddress_t SIKTEC_EPD::getPixelAddress(const int16_t x, const int16_t y) {
@@ -456,11 +514,39 @@ SIKTEC_EPD::pixelAddress_t SIKTEC_EPD::getPixelAddress(const int16_t x, const in
     };
 }
 
+
+/**
+ * @brief get pixel value at coordinates:
+ * same as getPixelAddress
+ * @param x coordinate
+ * @param y coordinate
+ * @return SIKTEC_EPD::pixelValue_t 
+ */
+SIKTEC_EPD::pixelValue_t SIKTEC_EPD::getPixel(const int16_t x, const int16_t y) {
+    
+    SIKTEC_EPD::pixelAddress_t pixel = this->getPixelAddress(x, y); // will handle bounds check also
+    
+    if (!this->use_sram) {
+        return{
+            pixel.inBound,                                          // bool     inBound;
+            false,                                                  // bool     sram;
+            (uint8_t)(pixel.ram_black != nullptr ? *pixel.ram_black : 0x0), // uint8_t black;
+            (uint8_t)(pixel.ram_color != nullptr ? *pixel.ram_color : 0x0)  // uint8_t color;
+        };
+    }
+    return {
+        pixel.inBound,                                                // bool     inBound;
+        true,                                                         // bool     sram;
+        (uint8_t)(pixel.inBound ? this->sram->read8(pixel.sram_black) : 0x0),  // uint8_t black;
+        (uint8_t)(pixel.inBound ? this->sram->read8(pixel.sram_color) : 0x0)   // uint8_t color;
+    };
+}
+
 /**
  * @brief debugs a pixel -> prints what is actually saved for this pixel in both channels
  * 
- * @param x position  
- * @param y position 
+ * @param x coordinate  
+ * @param y coordinate 
  * @param SerialPort 
  */
 void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y, Stream *SerialPort) {

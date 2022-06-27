@@ -78,6 +78,21 @@
 #define EPD_CMD_SEQUENCE_WAIT       0xFF
 #define EPD_CMD_SEQUENCE_END        0xFE
 
+#if defined(ESP32) || defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
+    // #define EPD_SRAM_SPEED              4000000L
+    // #define EPD_SRAM_SPEED              8000000L
+    // #define EPD_SRAM_SPEED              16000000L
+    #define EPD_SRAM_SPEED                 18000000L 
+    // #define EPD_SRAM_SPEED              20000000L
+#else 
+    #define EPD_SRAM_SPEED                 4000000L
+    // #define EPD_SRAM_SPEED              8000000L
+    // #define EPD_SRAM_SPEED              16000000L
+    // #define EPD_SRAM_SPEED              18000000L
+    // #define EPD_SRAM_SPEED              20000000L
+#endif
+
+
 namespace SIKtec {
 
 /** @brief Supported EPD color codes  */
@@ -139,23 +154,25 @@ public:
     SIKTEC_EPD(
         int width, int height, 
         int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
-        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency = EPD_SRAM_SPEED
     );
     SIKTEC_EPD(
         int width, int height, 
         const epd_pins_t &pins, 
-        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi
+        int8_t spi_clock, int8_t spi_miso,  int8_t spi_mosi, uint32_t clock_frequency = EPD_SRAM_SPEED
     );
     /** @brief The SIKTEC EPD constructor with the Arduino SPIClass. */
     SIKTEC_EPD(
         int width, int height, 
         int8_t CS, int8_t SRCS, int8_t DC, int8_t RST, int8_t BUSY, 
-        SPIClass *spi = &SPI
+        SPIClass *spi = &SPI,
+        uint32_t clock_frequency = EPD_SRAM_SPEED
     );
     SIKTEC_EPD(
         int width, int height, 
         const epd_pins_t &pins, 
-        SPIClass *spi = &SPI
+        SPIClass *spi = &SPI,
+        uint32_t clock_frequency = EPD_SRAM_SPEED
     );
 
     /** @brief virtual clears the internal buffers and destructs SRAM object. */
@@ -164,13 +181,24 @@ public:
     //------------------------------------------------------------------------//
     // SRAM Related:
     //------------------------------------------------------------------------//
+private:
+    uint16_t ram_buffer_element_size = 1;
 
 public:
 
     SIKTEC_SRAM *sram;
+
     bool is_using_sram();
 
     epd_sram_space_t getFreeSramSpace(uint32_t assumeTotalSizeKib = 256);
+
+    uint16_t allocateSramArrayBuffer(const uint16_t num, const uint16_t ele_bytes);
+
+    uint16_t releaseSramArrayBuffer();
+
+    bool getSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *out, const uint16_t num = 1);
+
+    bool setSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *in, const uint16_t num = 1);
 
     #if SIKTEC_EPD_DEBUG
         uint32_t analyzeSRAMsize(const bool print, Stream *SerialPort = &Serial);
@@ -186,10 +214,10 @@ protected:
 
     uint32_t buffer1_size = 0;          // size of the primary buffer
     uint32_t buffer2_size = 0;          // size of the secondary buffer
-    uint8_t *buffer1;               // the pointer to the primary buffer if using on-chip ram
-    uint8_t *buffer2;               // the pointer to the secondary buffer if using on-chip ram
-    uint8_t *color_buffer;          // the pointer to the color buffer if using on-chip ram
-    uint8_t *black_buffer;          // the pointer to the black buffer if using on-chip ram
+    uint8_t *buffer1;               // the pointer to the primary buffer if using ram
+    uint8_t *buffer2;               // the pointer to the secondary buffer if using ram
+    uint8_t *color_buffer;          // the pointer to the color buffer if using ram
+    uint8_t *black_buffer;          // the pointer to the black buffer if using ram
     uint16_t buffer1_addr;          // The SRAM address offsets for the primary buffer
     uint16_t buffer2_addr;          // The SRAM address offsets for the secondary buffer
     uint16_t colorbuffer_addr;      // The SRAM address offsets for the color buffer
@@ -227,7 +255,28 @@ protected:
 
 public:
 
+    /** @brief a struct used to address pixels*/
+    typedef struct PixelAddress {
+        bool inBound;
+        uint16_t offset;
+        int16_t rx;
+        int16_t ry;
+        uint16_t sram_black;
+        uint16_t sram_color;
+        uint8_t *ram_black;
+        uint8_t *ram_color;
+    } pixelAddress_t;
+
+    /** @brief a struct used to address pixels*/
+    typedef struct PixelValue {
+        bool     inBound;
+        bool     sram;
+        uint8_t black;
+        uint8_t color;
+    } pixelValue_t;
+
     void hardwareResetEPD(); ///< Perform a hardware reset with the reset pin.
+    pixelValue_t getPixel(const int16_t x, const int16_t y);
     void drawPixel(int16_t x, int16_t y, uint16_t color); ///< Draw a pixel on the screen.
     void clearBuffer(); ///< Clear drawing buffer.
     void clearDisplay(); ///< Clear the EPD screen. 
@@ -252,18 +301,6 @@ public:
     void _display_buffer(uint16_t from_addr, uint8_t cols, int length, Stream *SerialPort = &Serial);
 
 protected:
-
-    /** @brief a struct used to address pixels*/
-    typedef struct PixelAddress {
-        bool inBound;
-        uint16_t offset;
-        int16_t rx;
-        int16_t ry;
-        uint16_t sram_black;
-        uint16_t sram_color;
-        uint8_t *ram_black;
-        uint8_t *ram_color;
-    } pixelAddress_t;
 
     bool pixelInBounds(const int16_t x, const int16_t y);
     uint16_t getPixelAddressOffset(const int16_t x, const int16_t y);

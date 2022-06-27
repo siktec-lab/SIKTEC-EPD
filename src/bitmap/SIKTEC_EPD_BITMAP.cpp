@@ -119,102 +119,6 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::bitmapStatus() {
 }
 
 /**
- * @brief Draws the bitmap on the given EPD using a predefined filter / color kernel.
- * 
- * @param filter    the filter to be used enum BITMAP_FILTER
- * @param epd_x     uint32_t the top-left X position on the EPD.
- * @param epd_y     uint32_t the top-left Y position on the EPD.
- * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
- * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
- * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
- * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
- * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
- * @param reloadDefinition bool default False - whether to reload definition or not.
- * @return EPD_BITMAP_STATUS 
- */
-EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapFiltered(
-    BITMAP_FILTER   filter,
-    uint32_t        epd_x,
-    uint32_t        epd_y,
-    SIKTEC_EPD      *epd,
-    uint32_t        bmp_sc, // start column
-    uint32_t        bmp_sr, // start row
-    uint32_t        bmp_cw, // clip width 0 means fullwidth
-    uint32_t        bmp_ch, // clip height 0 means fullheight 
-    bool            reloadDefinition
-) { 
-    BITMAP_FILTER color_filter = filter;
-    //If auto use the board mode:
-    if (color_filter == BITMAP_FILTER::AUTO) {
-        switch (epd->inkmode) {
-            case EPD_MODE_TRICOLOR: {
-                color_filter = BITMAP_FILTER::BWR;
-            } break;
-            case EPD_MODE_GRAYSCALE4: {
-                color_filter = BITMAP_FILTER::GRAY4;
-            } break;
-            default: {
-                color_filter = BITMAP_FILTER::BW;
-            }
-        }
-    }
-    switch (color_filter) {
-        
-        case BITMAP_FILTER::GRAY4: {
-            BITMAP_G4_COLOR_KERNEL::setDesiredColors(EPD_BLACK, EPD_GRAY, EPD_LIGHT, EPD_WHITE);
-            return this->drawBitmap(
-                epd_x, epd_y, 
-                epd, 
-                bmp_sc, // start column
-                bmp_sr, // start row
-                bmp_cw, // clip width 0 means fullwidth
-                bmp_ch, // clip height 0 means fullheight 
-                &BITMAP_G4_COLOR_KERNEL::kernel, 
-                reloadDefinition
-            );
-        } break;
-        
-        case BITMAP_FILTER::BWR: {
-            BITMAP_BWR_COLOR_KERNEL::setDesiredColors(EPD_BLACK, EPD_WHITE, EPD_RED);
-            return this->drawBitmap(
-                epd_x, epd_y, 
-                epd,
-                bmp_sc, // start column
-                bmp_sr, // start row
-                bmp_cw, // clip width 0 means fullwidth
-                bmp_ch, // clip height 0 means fullheight 
-                &BITMAP_BWR_COLOR_KERNEL::kernel, 
-                reloadDefinition
-            );
-        } break;
-
-        case BITMAP_FILTER::BW: {
-            BITMAP_BW_COLOR_KERNEL::setDesiredColors(EPD_BLACK, EPD_WHITE);
-            return this->drawBitmap(
-                epd_x, epd_y, 
-                epd, 
-                bmp_sc, // start column
-                bmp_sr, // start row
-                bmp_cw, // clip width 0 means fullwidth
-                bmp_ch, // clip height 0 means fullheight 
-                &BITMAP_BW_COLOR_KERNEL::kernel, 
-                reloadDefinition
-            );
-        } break;
-    }
-    return this->drawBitmap(
-        epd_x, epd_y, 
-        epd,
-        bmp_sc, // start column
-        bmp_sr, // start row
-        bmp_cw, // clip width 0 means fullwidth
-        bmp_ch, // clip height 0 means fullheight 
-        nullptr, 
-        reloadDefinition
-    );
-}
-
-/**
  * @brief Define the loaded bitmap as a sprite.
  * 
  * @param columns   uint16_t number of sprite columns
@@ -249,33 +153,23 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapSprite(
 ) {
     uint16_t     row  = sprite_index / this->sprite.columns;
     uint16_t     col  =  sprite_index - (row * this->sprite.columns);
-    return this->drawBitmapFiltered(
-        filter,
-        epd_x, epd_y, 
-        epd,
-        col * this->sprite.width,
-        row * this->sprite.height,
-        this->sprite.width,
-        this->sprite.height,
-        reloadDefinition
-    );
+    // return this->drawBitmapFiltered(
+    //     filter,
+    //     epd_x, epd_y, 
+    //     epd,
+    //     col * this->sprite.width,
+    //     row * this->sprite.height,
+    //     this->sprite.width,
+    //     this->sprite.height,
+    //     reloadDefinition
+    // );
+    return EPD_BITMAP_STATUS::DONE;
 }
 
-/**
- * @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function.
- * 
- * @param epd_x     uint32_t the top-left X position on the EPD.
- * @param epd_y     uint32_t the top-left Y position on the EPD.
- * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
- * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
- * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
- * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
- * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
- * @param kernel    translate_color - the kernel function pointer.
- * @param reloadDefinition bool default False - whether to reload definition or not.
- * @return EPD_BITMAP_STATUS 
- */
+
+
 EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
+    BITMAP_FILTER   builtin_filters,
     uint32_t epd_x,
     uint32_t epd_y,
     SIKTEC_EPD *epd,
@@ -283,7 +177,123 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
     uint32_t bmp_sr, // start row
     uint32_t bmp_cw, // clip width 0 means fullwidth
     uint32_t bmp_ch, // clip height 0 means fullheight 
-    translate_color kernel,
+    bool reloadDefinition
+) {
+
+    //If we want a dither filter:
+    if (builtin_filters == BITMAP_FILTER::DITHER_BW) {
+        BitmapFilter_DITHER_BW DITHERBW_filter(EPD_BLACK, EPD_WHITE, 1.15);
+        return this->drawBitmapDithered(&DITHERBW_filter, epd_x, epd_y, epd, bmp_sc, bmp_sr, bmp_cw, bmp_ch, reloadDefinition);
+    }
+
+    //If we want a dither filter:
+    if (builtin_filters == BITMAP_FILTER::DITHER_GRAY4) {
+        #ifdef BITMAP_COLOR_RESULT_888 
+        uint16_t colormap_dither[5][4] = { // Use grey levels 0 - 255
+            { 0,     0,      0,      EPD_BLACK   },
+            { 90,    90,     90,     EPD_RED     },
+            { 90,    90,     90,     EPD_DARK    },
+            { 180,   180,    180,     EPD_LIGHT   },
+            { 255,   255,    255,     EPD_WHITE   }
+        };
+    #else 
+        uint16_t colormap_dither[5][4] = { // Use grey levels 0 - 41
+            {0,     0,      0,      EPD_BLACK   },
+            {15,    15,     15,     EPD_RED     },
+            {15,    15,     15,     EPD_DARK    },
+            {25,    25,     25,     EPD_LIGHT   },
+            {40,    40,     40,     EPD_WHITE   }
+        };
+    #endif 
+        BitmapFilter_DITHER_GRAY4 DITHERGRAY4_filter(1.15);
+        DITHERGRAY4_filter.setColorMap(colormap_dither, 5);
+        return this->drawBitmapDithered(&DITHERGRAY4_filter, epd_x, epd_y, epd, bmp_sc, bmp_sr, bmp_cw, bmp_ch, reloadDefinition);
+    }
+
+
+    //Builtin filters:
+    #ifdef BITMAP_COLOR_RESULT_888 
+        uint16_t colormap[5][4] = {
+            {0,     0,      0,      EPD_BLACK   },
+            {255,   255,    255,    EPD_WHITE   },
+            {170,   170,    170,    EPD_DARK    },
+            {85,    85,     85,     EPD_LIGHT   },
+            {255,   0,      0,      EPD_RED     }
+        };
+    #else 
+        uint16_t colormap[5][4] = {
+            {0,     0,      0,      EPD_BLACK   },
+            {31,    63,     31,     EPD_WHITE   },
+            {11,    22,     11,     EPD_DARK    },
+            {20,    40,     20,     EPD_LIGHT   },
+            {31,    0,      0,      EPD_RED     }
+        };
+    #endif 
+
+    BITMAP_FILTER_IMPLEMENTATION *filter;
+
+    switch (builtin_filters) {
+        case BITMAP_FILTER::GRAY4: {
+            filter = new BitmapFilter_GRAY4(30);
+            filter->setColorMap(colormap, 4);
+        } break;
+        case BITMAP_FILTER::BWR: {
+            filter = new BitmapFilter_BWR(4, 45, 10);
+            filter->setColorMap(colormap, 5);
+        } break;
+        case BITMAP_FILTER::BW: {
+            filter = new BitmapFilter_BW(40);
+            filter->setColorMap(colormap, 2);
+        } break;
+        case BITMAP_FILTER::QUANTIZE: {
+            filter = new BitmapFilter_QUANT();
+            filter->setColorMap(colormap, 5);
+        } break;
+        default: {
+            filter = new BitmapFilter_GRAY4(30);
+            filter->setColorMap(colormap, 4);
+        }
+    }
+
+    EPD_BITMAP_STATUS result = this->drawBitmap(
+        filter,
+        epd_x, epd_y, 
+        epd, 
+        bmp_sc, // start column
+        bmp_sr, // start row
+        bmp_cw, // clip width 0 means fullwidth
+        bmp_ch, // clip height 0 means fullheight 
+        reloadDefinition
+    );
+
+    delete filter;
+    return result;
+}
+
+
+/**
+ * @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function.
+ * 
+ * @param filter    BITMAP_FILTER_IMPLEMENTATION - the filter function pointer.
+ * @param epd_x     uint32_t the top-left X position on the EPD.
+ * @param epd_y     uint32_t the top-left Y position on the EPD.
+ * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
+ * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
+ * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
+ * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
+ * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
+ * @param reloadDefinition bool default False - whether to reload definition or not.
+ * @return EPD_BITMAP_STATUS 
+ */
+EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
+    BITMAP_FILTER_IMPLEMENTATION *filter,
+    uint32_t epd_x,
+    uint32_t epd_y,
+    SIKTEC_EPD *epd,
+    uint32_t bmp_sc, // start column
+    uint32_t bmp_sr, // start row
+    uint32_t bmp_cw, // clip width 0 means fullwidth
+    uint32_t bmp_ch, // clip height 0 means fullheight
     bool reloadDefinition
 ) {
 
@@ -333,14 +343,14 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
     uint32_t bmpStartRow = this->height() - bmp_sr - loadHeight;
     uint32_t bmpStartCol  = bmp_sc;
 
+    //the read definition for the bitmap file:
+    bmp_read_definition_t bmp_read = this->prepareBitmapReadDefinition(bmpStartRow, bmpStartCol, loadWidth, loadHeight);
+
     //FUTURE: add support for other compressions atleast RLE....
     if ( this->definition.info_header.compression == 0 ) {
         //Simple uncompressed bitmap:
         this->proccessUncompressed(
-            epd_x, epd_y, 
-            bmpStartRow, bmpStartCol,
-            loadWidth, loadHeight, 
-            epd, kernel
+            epd_x, epd_y, bmp_read, epd, filter
         );
     } else if (   this->definition.info_header.compression == 3 
                 && (this->definition.info_header.bpp == 16 || this->definition.info_header.bpp == 32)
@@ -348,10 +358,7 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
         // Observed in GIMP Bitmaps -> bpp 16, 32 is marked compressed....
         // Its a not:
         this->proccessUncompressed(
-            epd_x, epd_y, 
-            bmpStartRow, bmpStartCol,
-            loadWidth, loadHeight, 
-            epd, kernel
+            epd_x, epd_y, bmp_read, epd, filter
         );
     } else {
         //Not supported:
@@ -359,6 +366,286 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
         return EPD_BITMAP_STATUS::NOT_IMPLEMENTED; 
     }
 
+    this->file.close();
+    return EPD_BITMAP_STATUS::DONE;
+}
+
+/**
+ * @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function.
+ * 
+ * @param filter    BITMAP_FILTER_IMPLEMENTATION - the filter function pointer.
+ * @param epd_x     uint32_t the top-left X position on the EPD.
+ * @param epd_y     uint32_t the top-left Y position on the EPD.
+ * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
+ * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
+ * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
+ * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
+ * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
+ * @param reloadDefinition bool default False - whether to reload definition or not.
+ * @return EPD_BITMAP_STATUS 
+ */
+EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapDithered(
+    BITMAP_DITHER_FILTER *filter,
+    uint32_t epd_x,
+    uint32_t epd_y,
+    SIKTEC_EPD *epd,
+    uint32_t bmp_sc, // start column
+    uint32_t bmp_sr, // start row
+    uint32_t bmp_cw, // clip width 0 means fullwidth
+    uint32_t bmp_ch, // clip height 0 means fullheight
+    bool reloadDefinition
+) {
+
+       //Reload the header? only if changes could have been done....
+    if (reloadDefinition) {
+        this->definition = this->getBitmapDefinition(true);
+    }
+
+    // Make sure we are ready to go:
+    if (!this->isValid()) {
+        return this->bitmapStatus();
+    } 
+
+    //Early exit if we dont need to do anything:
+    if (epd && ((epd_x >= (uint32_t)epd->width()) || (epd_y >= (uint32_t)epd->height()))) 
+        return EPD_BITMAP_STATUS::DONE;
+
+    //Open file:
+    //NOTE: Shlomi removed this - its not necessary and can cause problems.
+    //this->sd->chvol(); // set this card to be the current active volume.
+    if (!this->file.isOpen() && !this->file.open(this->name, O_RDONLY)) {
+        this->definition.status = EPD_BITMAP_STATUS::ERROR_READ_FILE;
+        return EPD_BITMAP_STATUS::ERROR_READ_FILE;
+    }
+    
+    //Shrink clip if it goes out of bmp bounds:
+    uint32_t bmpWidth = (bmp_cw && bmp_cw < (uint32_t)this->width()) ? bmp_cw : this->width();
+    if (bmpWidth + bmp_sc > (uint32_t)this->width()) {
+        bmpWidth -= bmpWidth + bmp_sc - this->width();
+    }
+    uint32_t bmpHeight  = bmp_ch && bmp_ch < (uint32_t)this->height() ? bmp_ch : this->height();
+    if (bmpHeight + bmp_sr > (uint32_t)this->height()) {
+        bmpHeight -= bmpHeight + bmp_sr - this->height();
+    }
+
+    uint32_t loadWidth  = bmpWidth;
+    uint32_t loadHeight = bmpHeight; 
+    
+    //Avoid drawing outside of epd boundaries:
+    if (loadWidth + epd_x > (unsigned)epd->width()) 
+        loadWidth = epd->width() - epd_x;
+
+    if (loadHeight + epd_y > (unsigned)epd->height()) 
+        loadHeight = epd->height() - epd_y;
+
+    //starting row and columns:
+    uint32_t bmpStartRow = this->height() - bmp_sr - loadHeight;
+    uint32_t bmpStartCol  = bmp_sc;
+
+    //Early exit if not supported:
+    if (
+        (this->definition.info_header.compression != 0 &&  this->definition.info_header.compression != 3)
+        || (
+            this->definition.info_header.compression == 3 
+            && this->definition.info_header.bpp != 16
+            && this->definition.info_header.bpp != 32
+        )
+    ) {
+        //Not supported:
+        this->file.close();
+        return EPD_BITMAP_STATUS::NOT_IMPLEMENTED; 
+    }
+
+    bmp_read_definition_t bmp_read = this->prepareBitmapReadDefinition(bmpStartRow, bmpStartCol, loadWidth, loadHeight);
+    
+    //Allocate Buffer:
+    uint16_t sram_buffer;
+    int16_t *ram_buffer = nullptr;
+    bool in_sram = BITMAP_DITHER_FILTER::FORCE_RAM_BUFFER ? false : epd->is_using_sram();
+    if (in_sram) {
+        in_sram = epd->is_using_sram();
+        sram_buffer = epd->allocateSramArrayBuffer(
+            (uint16_t)(loadWidth * 2), 
+            sizeof(int16_t)
+        );
+    } else {
+        in_sram = false;
+        ram_buffer = new int16_t[loadWidth * 2];
+    }
+
+    //fill buffer:
+    int16_t     bmpColorPixel;
+    int16_t     greyPixel;
+    uint8_t     color_buf[2];
+    for (uint16_t row = 0; row < 2; ++row) {
+        for (uint16_t col = 0; col < loadWidth; ++col) {
+            bmpColorPixel = (int16_t)this->getBitmapPixel(bmp_read, col, loadHeight - row - 1, filter);
+            if (in_sram) {
+                color_buf[0] = bmpColorPixel >> 8;
+                color_buf[1] = bmpColorPixel & 0xFF;
+                epd->setSramArrayBufferElement(sram_buffer, col + row * loadWidth, color_buf, 1);
+            } else {
+                ram_buffer[col + row * loadWidth] = bmpColorPixel;
+            }
+        }
+    }
+    #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+        Serial.println("Initial Dither Buffer:");
+        this->printDitherBuffer(sram_buffer, ram_buffer, epd, loadWidth);
+    #endif
+
+    //Dither and shift:
+    uint32_t finalColumn = loadWidth - 1;
+    uint32_t finalRow    = loadHeight - 1; 
+    int16_t  dither_kernel[5];
+    int16_t  epd_col      = (int16_t)epd_x;
+    int16_t  epd_row      = (int16_t)epd_y;
+    for (uint16_t row = 0; row < loadHeight; ++row) {
+        for (uint16_t col = 0; col < loadWidth; ++col) {
+            //Current pixel:
+            if (in_sram) {
+                epd->getSramArrayBufferElement(sram_buffer, col, color_buf, 1);
+                dither_kernel[0] = (int16_t)((color_buf[0] << 8) | color_buf[1]);
+            } else {
+                dither_kernel[0] = ram_buffer[col];
+            }
+            //Right:
+            if (col < finalColumn) {
+                if (in_sram) {
+                    epd->getSramArrayBufferElement(sram_buffer, col + 1, color_buf, 1);
+                    dither_kernel[1] = (int16_t)((color_buf[0] << 8) | color_buf[1]);
+                } else {
+                    dither_kernel[1] = ram_buffer[col + 1];
+                }
+            } else {
+                dither_kernel[1] = 0;
+            }
+            //Down Left:
+            if (col > 0 && row < finalRow) {
+                if (in_sram) {
+                    epd->getSramArrayBufferElement(sram_buffer, col + loadWidth - 1, color_buf, 1);
+                    dither_kernel[2] = (int16_t)((color_buf[0] << 8) | color_buf[1]);
+                } else {
+                    dither_kernel[2] = ram_buffer[col + loadWidth - 1];
+                }
+            } else {
+                dither_kernel[2] = 0;
+            }
+            //Down:
+            if (row < finalRow) {
+                if (in_sram) {
+                    epd->getSramArrayBufferElement(sram_buffer, col + loadWidth, color_buf, 1);
+                    dither_kernel[3] = (int16_t)((color_buf[0] << 8) | color_buf[1]);
+                } else {
+                    dither_kernel[3] = ram_buffer[col + loadWidth];
+                }
+            } else {
+                dither_kernel[3] = 0;
+            }
+            //Down Right:
+            if (row < finalRow && col < finalColumn) {
+                if (in_sram) {
+                    epd->getSramArrayBufferElement(sram_buffer, col + loadWidth + 1, color_buf, 1);
+                    dither_kernel[4] = (int16_t)((color_buf[0] << 8) | color_buf[1]);
+                } else {
+                    dither_kernel[4] = ram_buffer[col + loadWidth + 1];
+                }
+            } else {
+                dither_kernel[4] = 0;
+            }
+            filter->dither(dither_kernel);
+            
+            //save it back to buffer:
+            if (in_sram) {
+                color_buf[0] = dither_kernel[0] >> 8;
+                color_buf[1] = dither_kernel[0] & 0xFF;
+                epd->setSramArrayBufferElement(sram_buffer, col, color_buf, 1);
+                if (col < finalColumn) {
+                    color_buf[0] = dither_kernel[1] >> 8;
+                    color_buf[1] = dither_kernel[1] & 0xFF;
+                    epd->setSramArrayBufferElement(sram_buffer, col + 1, color_buf, 1);
+                }
+                if (col > 0 && row < finalRow) {
+                    color_buf[0] = dither_kernel[2] >> 8;
+                    color_buf[1] = dither_kernel[2] & 0xFF;
+                    epd->setSramArrayBufferElement(sram_buffer, col + loadWidth - 1, color_buf, 1);
+                }
+                if (row < finalRow) {
+                    color_buf[0] = dither_kernel[3] >> 8;
+                    color_buf[1] = dither_kernel[3] & 0xFF;
+                    epd->setSramArrayBufferElement(sram_buffer, col + loadWidth, color_buf, 1);
+                }
+                if (row < finalRow && col < finalColumn) {
+                    color_buf[0] = dither_kernel[4] >> 8;
+                    color_buf[1] = dither_kernel[4] & 0xFF;
+                    epd->setSramArrayBufferElement(sram_buffer, col + loadWidth + 1, color_buf, 1);
+                }
+                // #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+                //     PRINT_DEBUG_BUFFER("Dither Buffer Pixel: %d %d \n", col, row);
+                //     this->printDitherBuffer(sram_buffer, ram_buffer, epd, loadWidth);
+                // #endif
+            } else {
+                ram_buffer[col] = dither_kernel[0];
+                if (col < finalColumn) {
+                    ram_buffer[col + 1] = dither_kernel[1];
+                }
+                if (col > 0 && row < finalRow) {
+                    ram_buffer[col + loadWidth - 1] = dither_kernel[2];
+                }
+                if (row < finalRow) {
+                    ram_buffer[col + loadWidth] = dither_kernel[3];
+                }
+                if (row < finalRow && col < finalColumn) {
+                    ram_buffer[col + loadWidth + 1] = dither_kernel[4];
+                }
+            }
+        }
+        #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+            PRINT_DEBUG_BUFFER("After Dither Buffer Row: %d \n", row);
+            this->printDitherBuffer(sram_buffer, ram_buffer, epd, loadWidth);
+        #endif
+        //draw raw and shift:
+        for (uint16_t col = 0; col < loadWidth; ++col) {
+            if (in_sram) {
+                //Draw:
+                epd->getSramArrayBufferElement(sram_buffer, col, color_buf, 1);
+                epd->drawPixel(epd_col++, epd_row, (color_buf[0] << 8) | color_buf[1]);
+                //Shift:
+                epd->getSramArrayBufferElement(sram_buffer, col + loadWidth, color_buf, 1);
+                epd->setSramArrayBufferElement(sram_buffer, col, color_buf, 1);
+                //Add New Row to buffer:
+                if (loadHeight - row > 1) {
+                    bmpColorPixel = (int16_t)this->getBitmapPixel(bmp_read, col, loadHeight - row - 2, filter);
+                    color_buf[0] = bmpColorPixel >> 8;
+                    color_buf[1] = bmpColorPixel & 0xFF;
+                    epd->setSramArrayBufferElement(sram_buffer, col + loadWidth, color_buf, 1);
+                }
+            } else {
+                //Draw:
+                epd->drawPixel(epd_col++, epd_row, ram_buffer[col]);
+                //Shift:
+                ram_buffer[col] = ram_buffer[col + loadWidth];
+                //Add New Row to buffer:
+                if (loadHeight - row > 1) {
+                    ram_buffer[col + loadWidth] = (int16_t)this->getBitmapPixel(bmp_read, col, loadHeight - row - 2, filter);
+                }
+            }
+        }
+        #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+            PRINT_DEBUG_BUFFER("After Dither Buffer Shift: %d \n", row);
+            this->printDitherBuffer(sram_buffer, ram_buffer, epd, loadWidth);
+        #endif
+        epd_row++; 
+        epd_col = (int16_t)epd_x;
+    }
+
+    //Release:
+    if (in_sram) {
+        epd->releaseSramArrayBuffer();
+    } else {
+        delete ram_buffer;
+    }
+    
     this->file.close();
     return EPD_BITMAP_STATUS::DONE;
 }
@@ -391,7 +678,7 @@ bmp_def_t SIKTEC_EPD_BITMAP::getBitmapDefinition(bool createPalette) {
                     
                     //Parse info header variant:
                     if (def.variant == BMP_VARIANT::BITMAPCOREHEADER_12) {
-                        //NOTE: we this manually as 12 sized has different struture:
+                        //NOTE: we do this manually as 12 sized headers has a different structure:
                         def.info_header.header_size  = this->read32();
                         def.info_header.width        = (uint32_t)this->read16();
                         def.info_header.height       = (uint32_t)this->read16();
@@ -505,6 +792,96 @@ BMP_VARIANT SIKTEC_EPD_BITMAP::bitmapVariant() {
     }
 }
 
+bmp_read_definition_t SIKTEC_EPD_BITMAP::prepareBitmapReadDefinition(const uint32_t bmp_sr, const uint32_t bmp_sc, const uint32_t loadWidth, const uint32_t loadHeight) {
+
+    bmp_read_definition_t bmp_read;
+    bmp_read.start_row      = bmp_sr;       //user defined stating row
+    bmp_read.start_col      = bmp_sc;       //user defined stating column
+    bmp_read.read_width     = loadWidth;    //user defined and adjusted width
+    bmp_read.read_height    = loadHeight;   //user defined and adjusted height
+    //BGR or 1-bit bitmap row format size:        
+    bmp_read.row_bit_size = ((this->definition.info_header.bpp * this->width() + 31) / 32) * 4; // padded.
+    //Set starting row address:
+    bmp_read.start_row_address = this->definition.file_header.array_start + bmp_read.start_row * bmp_read.row_bit_size;
+    //A small helper value that defines how many pixels are store in a byte:
+    switch (this->definition.info_header.bpp) {
+        case 1:     { bmp_read.pixels_per_iteration = 8; } break;
+        case 4:     { bmp_read.pixels_per_iteration = 2; } break;
+        default:    { bmp_read.pixels_per_iteration = 1; }
+    }
+    //Column offest:
+    switch (this->definition.info_header.bpp) {
+        case 1: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col / 8; 
+            bmp_read.column_skip_bytes      = bmp_read.start_col - bmp_read.column_offset_bytes * 8;
+        } break;
+        case 4: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col / 2; 
+            bmp_read.column_skip_bytes      = bmp_read.start_col - bmp_read.column_offset_bytes * 2;
+        } break;
+        case 8: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col; 
+            bmp_read.column_skip_bytes      = 0;
+        } break;
+        case 16: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col * 2; 
+            bmp_read.column_skip_bytes      = 0;
+        } break;
+        case 24: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col * 3; 
+            bmp_read.column_skip_bytes      = 0;
+        } break;
+        case 32: { 
+            bmp_read.column_offset_bytes    = bmp_read.start_col * 4; 
+            bmp_read.column_skip_bytes      = 0;
+        } break;
+    }
+    return bmp_read;
+}
+
+colorBits_t SIKTEC_EPD_BITMAP::getBitmapPixel(const bmp_read_definition_t bitmap_read, const int16_t x, const int16_t y, BITMAP_FILTER_IMPLEMENTATION *filter) {
+
+    uint32_t pixels = 0; //read buffer
+    uint32_t row = bitmap_read.start_row + y; // we flip it as the bitmap direction is flipped
+    uint32_t col = bitmap_read.start_col + x;
+    uint32_t address = bitmap_read.start_row_address + y * bitmap_read.row_bit_size;
+
+
+    //Point file to pixel array at start of row:
+    if (this->definition.info_header.bpp == 1) {
+        // TODO: Implement this
+        return 0;
+    } else if (this->definition.info_header.bpp == 4) {
+        // TODO: Implement this
+        return 0;
+    } else if (this->definition.info_header.bpp == 8) {
+        address += x;
+        this->seekSet(address + bitmap_read.column_offset_bytes);
+        //We assume its an index
+        uint8_t pixel1 = this->read8();
+        return this->pixelColorProccess((colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF),  filter);
+    } else if (this->definition.info_header.bpp == 16) {
+        address += x * 2;
+        this->seekSet(address + bitmap_read.column_offset_bytes);
+        //We assume RGB 565 as the color: 00000 000000 00000
+        uint16_t pixel1 = this->read16();
+        return this->pixelColorProccess(pixel1, filter);
+    } else if (this->definition.info_header.bpp == 24) {
+        address += x * 3;
+        this->seekSet(address + bitmap_read.column_offset_bytes);
+        //We assume RGB 888 as the color: 00000000 00000000 00000000
+        uint32_t pixel1 = this->read24();
+        return this->pixelColorProccess(pixel1, filter);
+    } else if (this->definition.info_header.bpp == 32) {
+        address += x * 4;
+        this->seekSet(address + bitmap_read.column_offset_bytes);
+        //We assume ARGB 8888 as the color: 00000000 00000000 00000000 00000000
+        uint32_t pixel1 = this->read32();
+        return this->pixelColorProccess(pixel1, filter);
+    }
+    return 0;
+}
+
 /**
  * @brief Will parse and traverse the pixel array and draw them on the given EPD.
  * 
@@ -520,86 +897,37 @@ BMP_VARIANT SIKTEC_EPD_BITMAP::bitmapVariant() {
  */
 void SIKTEC_EPD_BITMAP::proccessUncompressed(
     uint32_t epd_x, uint32_t epd_y, 
-    uint32_t bmp_r, uint32_t bmp_c, 
-    uint32_t loadWidth, uint32_t loadHeight,
+    const bmp_read_definition_t bitmap_read,
     SIKTEC_EPD *epd,
-    translate_color kernel
+    BITMAP_FILTER_IMPLEMENTATION *filter
 ) {
-    
-    //BGR or 1-bit bitmap format        
-    uint32_t rowSize     = ((this->definition.info_header.bpp * this->width() + 31) / 32) * 4;; // padded.
-    int16_t epd_col      = (int16_t)epd_x;
-    int16_t epd_row      = (int16_t)epd_y + loadHeight - 1;
-
-    //Set starting row address:
-    uint32_t row_add_start = this->definition.file_header.array_start + bmp_r * rowSize;
-
-    //A small helper value that defines how many pixels are store in a byte:
-    uint32_t pixels_per_pass = 1;
-    switch (this->definition.info_header.bpp) {
-        case 1: { 
-            pixels_per_pass = 8; 
-        } break;
-        case 4: { 
-            pixels_per_pass = 2; 
-        } break;
-        default: { 
-            pixels_per_pass = 1; 
-        }
-    }
-
-    //Col offest:
-    uint32_t col_offset_bytes = 0;
-    uint32_t col_skip = 0;
-    switch (this->definition.info_header.bpp) {
-        case 1: { 
-            col_offset_bytes = bmp_c / 8; 
-            col_skip = bmp_c - col_offset_bytes * 8;
-        } break;
-        case 4: { 
-            col_offset_bytes = bmp_c / 2; 
-            col_skip = bmp_c - col_offset_bytes * 2;
-        } break;
-        case 8: { 
-            col_offset_bytes = bmp_c; 
-            col_skip = 0;
-        } break;
-        case 16: { 
-            col_offset_bytes = bmp_c * 2; 
-            col_skip = 0;
-        } break;
-        case 24: { 
-            col_offset_bytes = bmp_c * 3; 
-            col_skip = 0;
-        } break;
-        case 32: { 
-            col_offset_bytes = bmp_c * 4; 
-            col_skip = 0;
-        } break;
-    }
 
     //We assume file is open -> this can be called only from draw which handles the file before.
-    //We declare those containers outside to avoid reallocation on the stack:
-    uint32_t pixels = 0; //read buffer
-    for (uint32_t r = 0; r < loadHeight; ++r, row_add_start += rowSize) {
+
+    int16_t epd_col      = (int16_t)epd_x;
+    int16_t epd_row      = (int16_t)epd_y + bitmap_read.read_height - 1;
+    uint32_t pixels      = 0; //read buffer
+    uint32_t address     = bitmap_read.start_row_address;
+
+    for (uint32_t r = 0; r < bitmap_read.read_height; ++r, address += bitmap_read.row_bit_size) {
         #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
-            PRINT_DEBUG_BUFFER("\n Row[%d,%ld]", r, (long)row_add_start);
+            PRINT_DEBUG_BUFFER("\n Row[%d,%ld]", r, (long)bitmap_read.row_bit_size);
         #endif
 
-        this->seekSet(row_add_start + col_offset_bytes);
+        this->seekSet(address + bitmap_read.column_offset_bytes);
         
-        for (uint32_t c = 0; c < loadWidth; c += pixels_per_pass) {
+        for (uint32_t c = 0; c < bitmap_read.read_width; c += bitmap_read.pixels_per_iteration) {
             //Point file to pixel array at start of row:
             if (this->definition.info_header.bpp == 1) {
                 pixels = this->read8();
-                for (uint8_t p = col_skip; p < pixels_per_pass; ++p) {
-                    uint8_t pixel1 = (pixels & ((uint32_t)1 << (pixels_per_pass-p-1))) != 0 ? 1 : 0;
+                for (uint8_t p = bitmap_read.column_skip_bytes; p < bitmap_read.pixels_per_iteration; ++p) {
+                    uint8_t pixel1 = (pixels & ((uint32_t)1 << (bitmap_read.pixels_per_iteration-p-1))) != 0 ? 1 : 0;
                     epd->drawPixel(
                         epd_col++, epd_row, 
                         this->pixelColorProccess(
                             //NOTE: shlomi - added this for security, in case the file (pixel array is curoptted) we want to avoid reading from undefined palette memory
                             (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
-                            kernel
+                            filter
                         )
                     );
                     #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
@@ -608,13 +936,13 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                 }
             } else if (this->definition.info_header.bpp == 4) {
                 pixels = this->read8();
-                for (int8_t p = pixels_per_pass - 1 - col_skip; p >= 0; --p) { //Int8_t is important here uint8_t will cause an infinite loop
+                for (int8_t p = bitmap_read.pixels_per_iteration - 1 - bitmap_read.column_skip_bytes; p >= 0; --p) { //Int8_t is important here uint8_t will cause an infinite loop
                     uint8_t pixel1 = (pixels >> (4 * p)) & 0xF;
                     epd->drawPixel(
                         epd_col++, epd_row, 
                         this->pixelColorProccess(
                             (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
-                            kernel
+                            filter
                         )
                     );
                     #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
@@ -627,7 +955,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                     epd_col++, epd_row, 
                     this->pixelColorProccess(
                         (colorBits_t)(pixel1 < this->definition.palette_size ? this->definition.palette[pixel1] : 0xFFFF), 
-                        kernel
+                        filter
                     )
                 );
                 #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
@@ -639,7 +967,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                 uint16_t pixel1 = this->read16();
                 epd->drawPixel(
                     epd_col++, epd_row, 
-                    this->pixelColorProccess(pixel1, kernel)
+                    this->pixelColorProccess(pixel1, filter)
                 );
                 #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
                     PRINT_DEBUG_BUFFER(" %3d", pixel1);
@@ -650,7 +978,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                 uint32_t pixel1 = this->read24();
                 epd->drawPixel(
                     epd_col++, epd_row, 
-                    this->pixelColorProccess(pixel1, kernel)
+                    this->pixelColorProccess(pixel1, filter)
                 );
                 #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
                     PRINT_DEBUG_BUFFER(" %3d", pixel1);
@@ -661,7 +989,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
                 uint32_t pixel1 = this->read32();
                 epd->drawPixel(
                     epd_col++, epd_row, 
-                    this->pixelColorProccess(pixel1, kernel)
+                    this->pixelColorProccess(pixel1, filter)
                 );
                 #if SIKTEC_EPD_DEBUG_BITMAP_PIXELS
                     PRINT_DEBUG_BUFFER(" %3d", pixel1);
@@ -686,10 +1014,10 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
  * @param kernel translate_color - the kernel function pointer.
  * @return colorBits_t 
  */
-colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, translate_color kernel) {
+colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, BITMAP_FILTER_IMPLEMENTATION *filter) {
     if (bitmap_color_result == BITMAP_COLOR_MODE::COLOR565) {
-        if (kernel != nullptr) {
-            return (kernel)(
+        if (filter != nullptr) {
+            return filter->kernel(
                 rgb565 >> 11,         // R
                 (rgb565 >> 5) & 0x3F, // G
                 rgb565 & 0x1F         // B
@@ -697,7 +1025,7 @@ colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, translate_col
         }
         return (colorBits_t)rgb565;
     } else {
-        return this->pixelColorProccess(this->color16to32(rgb565), kernel);
+        return this->pixelColorProccess(this->color16to32(rgb565), filter);
     }
 }
 
@@ -708,10 +1036,10 @@ colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, translate_col
  * @param kernel translate_color - the kernel function pointer.
  * @return colorBits_t 
  */
-colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint32_t rgb888, translate_color kernel) {
+colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint32_t rgb888, BITMAP_FILTER_IMPLEMENTATION *filter) {
     if (bitmap_color_result == BITMAP_COLOR_MODE::COLOR888) {
-        if (kernel != nullptr) {
-            return (kernel)(
+        if (filter != nullptr) {
+            return filter->kernel(
                 rgb888 >> 16,          // R
                 (rgb888 >> 8) & 0xFF,  // G
                 rgb888 & 0xFF          // B
@@ -719,7 +1047,7 @@ colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint32_t rgb888, translate_col
         }
         return (colorBits_t)rgb888;
     } else {
-        return this->pixelColorProccess(this->color32to16(rgb888), kernel);
+        return this->pixelColorProccess(this->color32to16(rgb888), filter);
     }
 }
 
@@ -732,7 +1060,8 @@ colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint32_t rgb888, translate_col
  * @return uint16_t RGB565.
  */
 uint16_t SIKTEC_EPD_BITMAP::color32to16(uint8_t R8, uint8_t G8, uint8_t B8) {  // A888 => 565
-    return ((R8 & 0xF8) << 8) | ((G8 & 0xFC) << 3) | (B8 >> 3);
+    //return ((R8 & 0xF8) << 8) | ((G8 & 0xFC) << 3) | (B8 >> 3);
+    return (((R8 >> 3) & 0x1f) << 11) | (((G8 >> 2) & 0x3f) << 5) | ((B8 >> 3) & 0x1f);
 }
 
 /**
@@ -954,6 +1283,29 @@ void SIKTEC_EPD_BITMAP::read32(uint32_t *output, const size_t length) {
             }
         }
     }
+#endif
+
+#if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+    void SIKTEC_EPD_BITMAP::printDitherBuffer(const uint16_t buffer, int16_t *ram_buffer,  SIKTEC_EPD *epd, const uint16_t width) {
+        colorBits_t bmpColorPixel;
+        uint8_t color_buf[2];
+        Serial.println("S---- DITHER BUF");
+        for (uint16_t row = 0; row < 2; ++row) {
+            for (uint16_t col = 0; col < width; ++col) {
+                if (ram_buffer == nullptr) {
+                    // From sram:
+                    epd->getSramArrayBufferElement(buffer, col + row * width, color_buf, 1);
+                    bmpColorPixel = (color_buf[0] << 8) | color_buf[1];
+                } else {
+                    // From ram:
+                    bmpColorPixel = ram_buffer[col + row * width];
+                }
+                PRINT_DEBUG_BUFFER("% 7d ", bmpColorPixel);
+            }
+            Serial.println();
+        }
+        Serial.println("E-----");
+    }   
 #endif
 
 }

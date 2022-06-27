@@ -33,7 +33,7 @@
 #include <SPI.h>
 #include <SdFat.h>
 #include <SIKTEC_EPD.h>
-#include "SIKTEC_EPD_COLOR_KERNELS.h"
+#include "SIKTEC_BITMAP_FILTERS.h"
 
 #ifndef SIKTEC_EPD_DEBUG_BITMAP 
     #define SIKTEC_EPD_DEBUG_BITMAP 0
@@ -41,6 +41,10 @@
 
 #ifndef SIKTEC_EPD_DEBUG_BITMAP_PIXELS
     #define SIKTEC_EPD_DEBUG_BITMAP_PIXELS 0
+#endif
+
+#ifndef SIKTEC_EPD_DEBUG_BITMAP_DITHER
+    #define SIKTEC_EPD_DEBUG_BITMAP_DITHER 0
 #endif
 
 #ifndef SPI_SCK_MHZ
@@ -92,7 +96,9 @@ enum BITMAP_FILTER {
     GRAY4,
     BWR,
     BW,
-    AUTO,
+    QUANTIZE,
+    DITHER_BW,
+    DITHER_GRAY4,
     NONE
 };
 
@@ -140,26 +146,8 @@ typedef struct BMPInfoHeader {
 } bmp_info_header_t;
 #pragma pack(pop)
 
-/**
- * @brief Two drawing color modes are supported 565 and 888
- * By default 565 is used unless a -D flag 'BITMAP_COLOR_RESULT_888'
- * is used when compiling
- */
-enum BITMAP_COLOR_MODE {
-    COLOR565,
-    COLOR888
-};
 
-/**
- * @brief A global constant that stores the draw color mode used for compilation
- */
-#ifdef BITMAP_COLOR_RESULT_888 
-    typedef uint32_t colorBits_t;
-    const BITMAP_COLOR_MODE bitmap_color_result = BITMAP_COLOR_MODE::COLOR888;
-#else 
-    typedef uint16_t colorBits_t;
-    const BITMAP_COLOR_MODE bitmap_color_result = BITMAP_COLOR_MODE::COLOR565;
-#endif 
+
 
 /**
  * @brief A struct that wraps the bitmap minimal required info. 
@@ -174,6 +162,21 @@ typedef struct BMPDefinition {
     colorBits_t         *palette = nullptr; //BMP format on SD is BGRA this will flip and store ARGB888 or RGB565
 } bmp_def_t;
 
+
+/**
+ * @brief A struct that defines how to read the specific loaded bmp. 
+ */
+typedef struct BMPReadDefinition {
+    uint32_t row_bit_size          = 0;
+    uint32_t read_width             = 0; 
+    uint32_t read_height            = 0; 
+    uint32_t start_row              = 0; 
+    uint32_t start_col              = 0; 
+    uint32_t start_row_address      = 0; 
+    uint32_t pixels_per_iteration   = 1;
+    uint32_t column_offset_bytes    = 0;
+    uint32_t column_skip_bytes      = 0;
+} bmp_read_definition_t;
 
 /**
  * @brief A BMP sprite definition struct. 
@@ -192,6 +195,7 @@ typedef colorBits_t (*translate_color)(const uint8_t R, const uint8_t G, const u
 //------------------------------------------------------------------------//
 // SIKTEC_EPD_BITMAP
 //------------------------------------------------------------------------//
+
 
 /**
  * @brief  The SIKTEC_EPD_BITMAP Class handles all the SD reading / parsing / translating and drawing to the EPD.
@@ -232,19 +236,6 @@ public:
     
     /** @brief return the bitmap status flag indicating the result of the bitmap parse attempt. */
     EPD_BITMAP_STATUS bitmapStatus();
-
-    /** @brief Draws the bitmap on the given EPD using a predefined filter / color kernel. */
-    EPD_BITMAP_STATUS drawBitmapFiltered(
-        BITMAP_FILTER   filter,
-        uint32_t        epd_x,
-        uint32_t        epd_y,
-        SIKTEC_EPD      *epd,
-        uint32_t        bmp_sc  = 0, // start column
-        uint32_t        bmp_sr  = 0, // start row
-        uint32_t        bmp_cw  = 0, // clip width 0 means fullwidth
-        uint32_t        bmp_ch  = 0, // clip height 0 means fullheight 
-        bool            reloadDefinition = false 
-    );
     
     /** @brief Define the loaded bitmap as a sprite. */
     void defineBitmapSprite(uint16_t columns, uint16_t rows);
@@ -259,8 +250,9 @@ public:
         bool            reloadDefinition = false 
     );
 
-    /** @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function. */
+
     EPD_BITMAP_STATUS drawBitmap(
+        BITMAP_FILTER builtin_filters,
         uint32_t epd_x,
         uint32_t epd_y,
         SIKTEC_EPD *epd,
@@ -268,7 +260,32 @@ public:
         uint32_t bmp_sr  = 0, // start row
         uint32_t bmp_cw  = 0, // clip width 0 means fullwidth
         uint32_t bmp_ch  = 0, // clip height 0 means fullheight 
-        translate_color kernel = nullptr,
+        bool reloadDefinition = false
+    );
+
+    /** @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function. */
+    EPD_BITMAP_STATUS drawBitmap(
+        BITMAP_FILTER_IMPLEMENTATION *filter,
+        uint32_t epd_x,
+        uint32_t epd_y,
+        SIKTEC_EPD *epd,
+        uint32_t bmp_sc  = 0, // start column
+        uint32_t bmp_sr  = 0, // start row
+        uint32_t bmp_cw  = 0, // clip width 0 means fullwidth
+        uint32_t bmp_ch  = 0, // clip height 0 means fullheight 
+        bool reloadDefinition = false
+    );
+    
+    /** @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function. */
+    EPD_BITMAP_STATUS drawBitmapDithered(
+        BITMAP_DITHER_FILTER *filter,
+        uint32_t epd_x,
+        uint32_t epd_y,
+        SIKTEC_EPD *epd,
+        uint32_t bmp_sc  = 0, // start column
+        uint32_t bmp_sr  = 0, // start row
+        uint32_t bmp_cw  = 0, // clip width 0 means fullwidth
+        uint32_t bmp_ch  = 0, // clip height 0 means fullheight 
         bool reloadDefinition = false
     );
 
@@ -279,23 +296,31 @@ public:
         /** @brief  */
         void debug_bitmapDefinition();
     #endif
-
+    #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
+        /** @brief  */
+        void printDitherBuffer(const uint16_t buffer, int16_t *ram_buffer,  SIKTEC_EPD *epd, const uint16_t width);
+    #endif
+    
 private:
     
+    /** @brief will return all needed values to define how and where to read the bitmap array based on the given coordinates **/
+    bmp_read_definition_t prepareBitmapReadDefinition(const uint32_t bmp_sr, const uint32_t bmp_sc, const uint32_t loadWidth, const uint32_t loadHeight);
+
+    colorBits_t getBitmapPixel(const bmp_read_definition_t bitmap_read, const int16_t x, const int16_t y, BITMAP_FILTER_IMPLEMENTATION *filter);
+
     /** @brief Will parse and traverse the pixel array and draw them on the given EPD. */
     void proccessUncompressed(
         uint32_t epd_x, uint32_t epd_y, 
-        uint32_t bmp_r, uint32_t bmp_c, 
-        uint32_t loadWidth, uint32_t loadHeight,
+        const bmp_read_definition_t bitmap_read,
         SIKTEC_EPD *epd,
-        translate_color kernel = nullptr
+        BITMAP_FILTER_IMPLEMENTATION *filter = nullptr
     );
 
     /** @brief Will apply the Filter / Kernel to a parsed pixel and return the color format to use. */
-    colorBits_t pixelColorProccess(uint16_t rgb565, translate_color kernel = nullptr);
+    colorBits_t pixelColorProccess(uint16_t rgb565, BITMAP_FILTER_IMPLEMENTATION *filter = nullptr);
 
     /** @brief Will apply the Filter / Kernel to a parsed pixel and return the color format to use. */
-    colorBits_t pixelColorProccess(uint32_t rgb888, translate_color kernel = nullptr);
+    colorBits_t pixelColorProccess(uint32_t rgb888, BITMAP_FILTER_IMPLEMENTATION *filter = nullptr);
 
     /** @brief Return the bitmap type (Header Format) - Based on the header size. */
     BMP_VARIANT bitmapVariant();

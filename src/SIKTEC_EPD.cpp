@@ -570,7 +570,7 @@ SIKTEC_EPD::pixelValue_t SIKTEC_EPD::getPixel(const int16_t x, const int16_t y) 
  * @param y coordinate 
  * @return void
  */
-#ifdef SIKTEC_EPD_DEBUG
+#if SIKTEC_EPD_DEBUG
 void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y) {
     SIKTEC_EPD::pixelAddress_t pixel = this->getPixelAddress(x, y);
     char pbuf[90];

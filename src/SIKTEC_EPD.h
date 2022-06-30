@@ -37,10 +37,7 @@
 //------------------------------------------------------------------------//
 // DEBUGGING FLAGS:
 //------------------------------------------------------------------------//
-// #define SIKTEC_EPD_DEBUG
-// #define SIKTEC_EPD_DEBUG_COMMAND_LISTS 1
-// #define SIKTEC_EPD_DEBUG_PIXELS 1
-// #SIKTEC_EPD_DEBUG_SRAM 1
+
 #ifndef SIKTEC_EPD_DEBUG 
     #define SIKTEC_EPD_DEBUG 0
 #endif
@@ -53,7 +50,9 @@
 #ifndef SIKTEC_EPD_DEBUG_SRAM 
     #define SIKTEC_EPD_DEBUG_SRAM 0
 #endif
-#define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
+#ifndef SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 
+    #define SIKTEC_EPD_DEBUG_SRAM_READ_WRITE 15001
+#endif
 
 
 #ifndef PRINT_DEBUG_BUFFER
@@ -304,7 +303,7 @@ public:
     bool EPD_isPowered();
 
     //Debugging stuff:
-    #ifdef SIKTEC_EPD_DEBUG
+    #if SIKTEC_EPD_DEBUG
         void debugPixel(const int16_t x, const int16_t y);
     #endif
     void _print_debug_byte(uint16_t addr, uint8_t value, bool new_line = false, Stream *SerialPort = &Serial);

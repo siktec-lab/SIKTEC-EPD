@@ -26,9 +26,9 @@
 /**********************************************************************************************/
 // SELECT YOUR EPD MODULE:
 /**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
+#define SIKTEC_BOARD_G4
 // #define SIKTEC_BOARD_3CU
-#define SIKTEC_BOARD_3CS
+// #define SIKTEC_BOARD_3CS
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -99,7 +99,7 @@ SdFat sd_card;
 FatFile file;
 
 //400x300 images to use:
-const char filenames[][15] = {
+const char filenames[][25] = {
     "p_example3.bmp",
     "p_example2.bmp",
     "p_example1.bmp"
@@ -165,7 +165,9 @@ void setup() {
 void loop() {
     
     //Loop through the images and dither them:
-    for (uint8_t i = 0; i < 3; ++i) {
+    size_t images_count = (sizeof(filenames) / sizeof(filenames[0]));
+    Serial.println(images_count);
+    for (uint8_t i = 0; i < images_count; ++i) {
         
         //Parse the Bitmap:
         SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, filenames[i]);
@@ -177,8 +179,30 @@ void loop() {
             //Draw the bitmap:
             #ifdef SIKTEC_BOARD_G4
                 EPD_BITMAP_STATUS draw = bitmap.drawBitmap(BITMAP_FILTER::DITHER_GRAY4, 0, 0, board, 0, 0, 400, 300);
+                
+                // More Control:
+                /* 
+                    uint16_t colormap4gray[5][4] = {
+                        {0,     0,      0,      EPD_BLACK   },
+                        {15,    15,     15,     EPD_RED     },
+                        {15,    15,     15,     EPD_DARK    },
+                        {25,    25,     25,     EPD_LIGHT   },
+                        {40,    40,     40,     EPD_WHITE   }
+                    };
+                    BitmapFilter_DITHER_GRAY4 DITHER_GRAY4_filter(1); // threshold 0.00 - 2.00
+                    DITHER_GRAY4_filter.setWeightVector(DITHER_WEIGHTS_VECTOR_FLOYD); 
+                    DITHER_GRAY4_filter.setColorMap(colormap4gray, 5);
+                    EPD_BITMAP_STATUS draw = bitmap.drawBitmapDithered(&DITHER_GRAY4_filter, 0, 0, board, 0, 0, 400, 300);
+                */ 
+
             #else
                 EPD_BITMAP_STATUS draw = bitmap.drawBitmap(BITMAP_FILTER::DITHER_BW, 0, 0, board, 0, 0, 400, 300);
+
+                // More Control:
+                /*
+                    BitmapFilter_DITHER_BW DITHER_BW_filter(EPD_BLACK, EPD_WHITE, 1); // threshold 0.00 - 2.00
+                    EPD_BITMAP_STATUS draw = bitmap.drawBitmapDithered(&DITHER_BW_filter, 0, 0, board, 0, 0, 400, 300);
+                */
             #endif
             // Update display to show the result:
             board->display(true);

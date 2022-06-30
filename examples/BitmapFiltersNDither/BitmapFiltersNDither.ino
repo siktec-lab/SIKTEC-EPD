@@ -33,9 +33,9 @@
 /**********************************************************************************************/
 // Select your board:
 /**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
+#define SIKTEC_BOARD_G4
 // #define SIKTEC_BOARD_3CU
-#define SIKTEC_BOARD_3CS
+// #define SIKTEC_BOARD_3CS
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -242,7 +242,7 @@ void setup() {
         BitmapFilter_DITHER_GRAY4 DITHER_GRAY4_filter(0.85); // threshold 0.00 - 2.00
         DITHER_GRAY4_filter.setWeightVector(DITHER_WEIGHTS_VECTOR_FLOYD); 
         DITHER_GRAY4_filter.setColorMap(colormap4gray, 5);
-        EPD_BITMAP_STATUS drawDITHER_GRAY4 = bitmap.drawBitmap(&DITHER_GRAY4_filter, 266, 150, board, 50, 60, 130, 147);
+        EPD_BITMAP_STATUS drawDITHER_GRAY4 = bitmap.drawBitmapDithered(&DITHER_GRAY4_filter, 266, 150, board, 50, 60, 130, 147);
     */
 }
 

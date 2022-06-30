@@ -10,16 +10,17 @@
  * This example scans the bitmaps of an SD card and draws them onto the EPD.
  * The color translation is done by the library therefor you don't need to use other tools to prep your bitmaps. 
  * That said, with E-Paper displays it's always a good practice to use 1bpp up to 16 bit color depth for better performance.
- * For the Example to run plug an SD card with some bitmaps in the root folder and uncomment your board type right after 
- * This comment.
+ * FOR THIS EXAMPLE TO WORK:
+ * 1. uncomment the correct EPD module you are using.
+ * 2. copy images (from repo or you own) to an SD card and plug it in. 
 *******************************************************************************/
 
 /**********************************************************************************************/
 // Select your board:
 /**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
+#define SIKTEC_BOARD_G4
 // #define SIKTEC_BOARD_3CU
-#define SIKTEC_BOARD_3CS
+// #define SIKTEC_BOARD_3CS
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -38,30 +39,40 @@ using namespace SIKtec;
 // epd_pins_t { edp_cs, sram_cs, dc, rst, busy }
 /**********************************************************************************************/
 #if defined(ESP32)
+
     #define CUR_BOARD "ESP32"
     #define EPD_PINS {16, 17, 4, 13, 15}
     #define SD_CS     14
     #define SD_SPI_SPEED SPI_SCK_MHZ(20)
+
 #elif defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+
     #define CUR_BOARD "MEGA"
     #define EPD_PINS {8, 9, 10, 11, 12}
     #define SD_CS     14
     #define SD_SPI_SPEED SPI_SCK_MHZ(20)
+
 #elif defined(ARDUINO_AVR_UNO) ||  defined(ARDUINO_AVR_NANO) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
+
     #define CUR_BOARD "328P"
     #define EPD_PINS {9, 8, 7, 6, 5}
     #define SD_CS     14
     #define SD_SPI_SPEED SPI_SCK_MHZ(4)
+
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega16U4__)
+
     #define CUR_BOARD "LEONARDO"
     #define EPD_PINS {9, 8, 7, 6, 5}
     #define SD_CS     4
     #define SD_SPI_SPEED SPI_SCK_MHZ(4)
+
 #elif defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
+
     #define CUR_BOARD "DUE"
     #define EPD_PINS {9, 8, 7, 6, 5}
     #define SD_CS     4
     #define SD_SPI_SPEED SPI_SCK_MHZ(20)
+
 #endif
 
 epd_pins_t epd_pins = EPD_PINS;
@@ -73,6 +84,8 @@ epd_pins_t epd_pins = EPD_PINS;
 //The sd card:
 SdFat sd_card;
 FatFile file;
+
+const char bitmap_ext[] = ".bmp";
 
 //The EPD Board Driver:
 #if defined(SIKTEC_BOARD_G4) 
@@ -131,10 +144,8 @@ void setup() {
     //Loop through bitmaps in root and draw them on EPD:
     sd_card.vwd()->rewind();
     char filename[75];
-    //Those are the extenssion we will use:
-    char ext_lower[] = ".bmp";
-    char ext_upper[] = ".BMP";
     int  drawn = 0;
+
     //Loop through the files in the SD Root directory:
     while (file.openNext(sd_card.vwd(), O_RDONLY)) {
 
@@ -144,20 +155,24 @@ void setup() {
              //Only bitmaps:
             file.getName(filename, 75);
             if (
-                strcmp(ext_lower, &filename[strlen(filename)-strlen(ext_lower)]) == 0 ||
-                strcmp(ext_upper, &filename[strlen(filename)-strlen(ext_upper)]) == 0
+                strcmp(bitmap_ext, &filename[strlen(filename)-strlen(bitmap_ext)]) == 0
             ) {
+
                 //Parse the Bitmap:
-                SIKTEC_EPD_BITMAP bitmapTest = SIKTEC_EPD_BITMAP(&sd_card, file);
+                SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, file);
 
                 //Check its loaded and supported:
-                if (bitmapTest.isValid()) {
+                if (bitmap.isValid()) {
                     
                     //Clear the Drawing Buffer:
                     board->clearBuffer();
 
                     //Draw bitmap directly to the EPD:
-                    EPD_BITMAP_STATUS draw = bitmapTest.drawBitmapFiltered(BITMAP_FILTER::AUTO, 0, 0, board, 0, 0, 0, 0);
+                    #if defined(SIKTEC_BOARD_G4) 
+                        EPD_BITMAP_STATUS draw = bitmap.drawBitmap(BITMAP_FILTER::GRAY4, 0, 0, board, 0, 0, 0, 0);
+                    #else 
+                        EPD_BITMAP_STATUS draw = bitmap.drawBitmap(BITMAP_FILTER::BWR, 0, 0, board, 0, 0, 0, 0);
+                    #endif
 
                     //Check wether bitmap was successfully drawn?
                     if (draw != EPD_BITMAP_STATUS::DONE) {

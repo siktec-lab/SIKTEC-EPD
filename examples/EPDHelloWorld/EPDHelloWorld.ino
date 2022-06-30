@@ -18,27 +18,18 @@
  * Hello world Example
  * Will Print text on the EPD.
  * Will print a color map.
- * Will draw some circle patterns on the EPD.
- * 
- * Select the correct board to compile for by uncommenting on line 32
- * You can enable disable test feature by un/commenting on line 40
+ * Will draw some circle patterns on the EPD. 
+ * FOR THIS EXAMPLE TO WORK:
+ * 1. uncomment the correct EPD module you are using.
  * 
 *******************************************************************************/
 
 /**********************************************************************************************/
 // Select your board:
 /**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
-#define SIKTEC_BOARD_3CU
+#define SIKTEC_BOARD_G4
+// #define SIKTEC_BOARD_3CU
 // #define SIKTEC_BOARD_3CS
-
-/**********************************************************************************************/
-// WHICH TESTS TO PERFORM: 
-// comment to disable
-/**********************************************************************************************/
-#define QC_PRINT_TEXT
-#define QC_COLOR_MAP
-#define QC_SAND_CIRCLES
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -54,21 +45,31 @@ using namespace SIKtec;
 // PIN DEFINITION: 
 // epd_pins_t { edp_cs, sram_cs, dc, rst, busy }
 /**********************************************************************************************/
-#if defined(ESP32)
+#if defined(ESP32) 
+    
     #define CUR_BOARD "ESP32"
-    #define EPD_PINS {16, 17, 4, 13, 15}
+    #define EPD_PINS {16, 17, 4, 13, 15} 
+
 #elif defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+    
     #define CUR_BOARD "MEGA"
     #define EPD_PINS {8, 9, 10, 11, 12}
+
 #elif defined(ARDUINO_AVR_UNO) ||  defined(ARDUINO_AVR_NANO) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
+    
     #define CUR_BOARD "328P"
     #define EPD_PINS {9, 8, 7, 6, 5}
+
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega16U4__)
+    
     #define CUR_BOARD "LEONARDO"
     #define EPD_PINS {9, 8, 7, 6, 5}
+
 #elif defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
+    
     #define CUR_BOARD "DUE"
     #define EPD_PINS {9, 8, 7, 6, 5}
+
 #endif
 
 epd_pins_t epd_pins = EPD_PINS;
@@ -104,14 +105,20 @@ void setup() {
     Serial.println("Initialize EPD:");
 
     #if defined(SIKTEC_BOARD_G4) 
+
         board = new SIKTEC_EPD_G4(epd_pins);
         board->begin(EPD_MODE_GRAYSCALE4);
+
     #elif defined(SIKTEC_BOARD_3CU) 
+
         board = new SIKTEC_EPD_3CU(epd_pins);
         board->begin(EPD_MODE_TRICOLOR);
+
     #elif defined(SIKTEC_BOARD_3CS)
+
         board = new SIKTEC_EPD_3CS(epd_pins);
         board->begin(EPD_MODE_TRICOLOR);
+
     #endif
 
     //For debugging - check if we are using sram or not:
@@ -130,32 +137,54 @@ void loop() {
     board->clearBuffer();
 
     //Set text size:
+    board->setTextSize(3);
+
+    //Print header message:
+    draw_text(5, 10, EPD_BLACK, "SIKTEC EPD MODULE");
     board->setTextSize(2);
 
-    #ifdef QC_PRINT_TEXT
-        if (board->is_using_sram()) {
-            draw_text(5, 10, EPD_BLACK, "SIKTEC EPD QC - SRAM Enabled.");
-        } else {
-            draw_text(5, 10, EPD_BLACK, "SIKTEC EPD QC - SRAM Disabled.");
-        }
-    #endif
+    //Print SRAM status?
+    draw_text(5, 45, EPD_BLACK, 
+        board->is_using_sram() ? " > SRAM - Enabled." : " > SRAM - Disabled."
+    );
 
-    #ifdef QC_COLOR_MAP
-        color_map(55, 55, 10, 300, 40); 
-    #endif
+    //Color map palette"
+    draw_text(5, 70, EPD_BLACK, " > COLOR MAP:");
+    color_map(55, 95, 10, 300, 40); 
 
-    #ifdef QC_SAND_CIRCLES
-        sand_circles(190, 12, 16);
-    #endif
+    //Some nice Circles:
+    draw_text(5, 145, EPD_BLACK, " > SAND CIRCLES:");
+    sand_circles(232, 12, 14);
 
-    // //Draw the buffer on screen and power down:
+    // Draw the buffer on screen and power down:
     board->display(true);
 
     while (1) { ; };
 }
 
-void draw_text(int16_t x, int16_t y, uint16_t color, const char str[]) {
-    
+void draw_line_thickness(int x, int y, int x1, int y1, int thickness, uint16_t color) { 
+    int   dx = abs(x - x1);
+    int   dy = abs(y - y1);
+    if (dx == 0) {
+        //vertical line:
+        board->fillRect(
+            x - (thickness / 2), y > y1 ? y1 : y, thickness, dy, EPD_BLACK
+        );
+    } else if (dy == 0) {
+        //Horizontal line:
+        board->fillRect(
+            x > x1 ? x1 : x, y - (thickness / 2), thickness, dx, EPD_BLACK
+        );
+    } else {
+        //Angled line:
+        float ddx = (thickness / 2.0) * (x - x1) / sqrt(sq(x - x1) + sq(y - y1));
+        float ddy = (thickness / 2.0) * (y - y1) / sqrt(sq(x - x1) + sq(y - y1));
+        board->fillTriangle(x + ddx, y - ddy, x - ddx, y + ddy, x1 + ddx, y1 - ddy, color);
+        board->fillTriangle(x - ddx, y + ddy, x1 - ddx, y1 + ddy, x1 + ddx, y1 - ddy, color);
+    }
+}
+
+void draw_text(int16_t x, int16_t y, uint16_t color, const char str[]) {    
     //Draw the text using GFX library:
     board->setTextColor(color);
     board->setCursor(x, y);
@@ -163,7 +192,6 @@ void draw_text(int16_t x, int16_t y, uint16_t color, const char str[]) {
 }
 
 void sand_circles(const uint16_t y, const uint16_t middleRep, const uint16_t sideRep) {
-
     //Circles using GFX library:
     for (uint16_t i = 0; i < sideRep; i++) {
         board->drawCircle(100, y, i * 5, (i % 2 != 0 ? EPD_BLACK : EPD_RED));
@@ -184,17 +212,13 @@ void color_map(const int16_t x, const int16_t y, const int16_t gutter, const int
     //Rectangles using GFX library:
     for (uint8_t i = 0; i < EPD_NUM_COLORS; ++i) {
         board->drawRect(
-            x + (move * i), 
-            y, 
-            cellW, 
-            cellH, 
+            x + (move * i), y, 
+            cellW, cellH, 
             EPD_BLACK
         );
         board->fillRect(
-            x + (move * i) + 4, 
-            y + 4, 
-            cellW - 8, 
-            cellH - 8, 
+            x + (move * i) + 4, y + 4, 
+            cellW - 8, cellH - 8, 
             i
         );
     }

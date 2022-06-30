@@ -202,7 +202,7 @@ public:
 
     uint16_t allocateSramArrayBuffer(const uint16_t num, const uint16_t ele_bytes);
 
-    uint16_t releaseSramArrayBuffer();
+    void releaseSramArrayBuffer();
 
     bool getSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *out, const uint16_t num = 1);
 

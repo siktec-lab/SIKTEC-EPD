@@ -13,6 +13,9 @@
 
 namespace SIKtec {
 
+/**
+ * @brief when debug flag create a message buffer for the debug output 
+ */
 #if SIKTEC_EPD_DEBUG || SIKTEC_EPD_DEBUG_PIXELS || SIKTEC_EPD_DEBUG_SRAM || SIKTEC_EPD_DEBUG_COMMAND_LISTS
     char debug_message[150];
     const int debug_message_len = sizeof( debug_message ) / sizeof( debug_message[0] );
@@ -216,6 +219,7 @@ bool SIKTEC_EPD::is_using_sram() {
 
 /**
  * @brief get additional SRAM available space in Kib (kilo-binary bits)
+ * used by filters when additional buffer is required.
  * 
  * @param assumeTotalSizeKib 
  * @return epd_sram_space_t free space in Kib and Bytes and address
@@ -233,10 +237,12 @@ epd_sram_space_t SIKTEC_EPD::getFreeSramSpace(uint32_t assumeTotalSizeKib)  {
 }
 
 /**
- * @brief get additional SRAM/RAM available space in Kib (kilo-binary bits)
+ * @brief allocate space in extra SRAM space and get the address
  * 
- * @param assumeTotalSizeKib 
- * @return epd_sram_space_t free space in Kib and Bytes and address
+ * @param num the number of elements we are want to allocate.
+ * @param ele_bytes the size in bytes of one element
+ * @return uint16_t the address to use when writing / reading
+ * @return 0 -> mens can't allocate, not enough space or SRAM is not used
  */
 uint16_t SIKTEC_EPD::allocateSramArrayBuffer(const uint16_t num, const uint16_t ele_bytes)  {
     if (this->use_sram) {
@@ -250,16 +256,14 @@ uint16_t SIKTEC_EPD::allocateSramArrayBuffer(const uint16_t num, const uint16_t 
 }
 
 /**
- * @brief get additional SRAM available space in Kib (kilo-binary bits)
+ * @brief release / reset the the SRAM buffer allocation
  * 
- * @param assumeTotalSizeKib 
  * @return epd_sram_space_t free space in Kib and Bytes and address
  */
-uint16_t SIKTEC_EPD::releaseSramArrayBuffer()  {
+void SIKTEC_EPD::releaseSramArrayBuffer()  {
     if (this->use_sram) {
         this->ram_buffer_element_size = 1;
     }
-    return 0;
 }
 
 bool SIKTEC_EPD::getSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *out, const uint16_t num)  {

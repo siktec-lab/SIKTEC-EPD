@@ -9,17 +9,28 @@
  *  - https://upload.wikimedia.org/wikipedia/commons/7/75/BMPfileFormat.svg 
  *  - https://www.digicamsoft.com/bmp/bmp.html
  *  - https://en.wikipedia.org/wiki/BMP_file_format
- * BMP Format:
- *  File Header (14 bytes):
- *      - 0  : 2 bytes : file type -> 2 characters such as BM
- *      - 2  : 4 bytes : The size of the BMP file in bytes.
- *      - 6  : 2 bytes : Reserved; actual value depends on the application that creates the image, if created manually can be 0
- *      - 8  : 2 bytes : Reserved; actual value depends on the application that creates the image, if created manually can be 0
- *      - 10 : 4 bytes : The offset, i.e. starting address, of the byte where the bitmap image data (pixel array) can be found.
+ * About Dithering:
+ *  - https://tannerhelland.com/2012/12/28/dithering-eleven-algorithms-source-code.html
+ *  - https://mncaudill.github.io/3bitdither/
+ * Dither Image tools:
+ *  - https://legacy.imagemagick.org/Usage/quantize/#dither_error
+ * Supported BMP Formats:
+ *  1. Windows BMP 1-32 bpp, compressions 0 - 3.
+ *  2. OS2 BMP 1-32 bpp, compressions 0 - 3. 
+ *  3. Headers - 12 - 124 bytes variants,
+ *  4. GIMP Bitmaps.
+ *  5. Illustrator Bitmaps.
 *******************************************************************************/
 /*****************************      Changelog       ****************************
 1.0.1:
     -> initial release.
+    -> Filters and Dithering procedure.
+    -> Multiple formats supported.
+
+Future:
+    -> //TODO: implement reversed array bitmaps.
+    -> //TODO: implement dithering with 1 - 8 bpp bitmaps.
+    -> //TODO: create bitmap procedure. 
 *******************************************************************************/
 
 
@@ -103,7 +114,7 @@ enum BITMAP_FILTER {
 };
 
 /**
- * @brief the file header layout share among all types. 
+ * @brief the file header layout shared among all types. 
  */
 #pragma pack(push, 1)
 typedef struct BMPFileHeader {
@@ -142,12 +153,9 @@ typedef struct BMPInfoHeader {
     uint32_t  color_encoding   = 0;  // 0 -> RGB 
     uint32_t  ignore_ident     = 0;
     //+
-    //FOR GIMP support Photoshop
+    //FOR GIMP support Photoshop and Illustrator
 } bmp_info_header_t;
 #pragma pack(pop)
-
-
-
 
 /**
  * @brief A struct that wraps the bitmap minimal required info. 
@@ -189,13 +197,12 @@ typedef struct BMPSprite {
 } bmp_sprite_t;
 
 
-/** @brief the kernel function pointer that can be attached as a to the drawing methods */
+/** @brief the kernel function pointer that can be attached as a filter to the drawing methods */
 typedef colorBits_t (*translate_color)(const uint8_t R, const uint8_t G, const uint8_t B);
 
 //------------------------------------------------------------------------//
 // SIKTEC_EPD_BITMAP
 //------------------------------------------------------------------------//
-
 
 /**
  * @brief  The SIKTEC_EPD_BITMAP Class handles all the SD reading / parsing / translating and drawing to the EPD.
@@ -249,8 +256,16 @@ public:
         SIKTEC_EPD      *epd,
         bool            reloadDefinition = false 
     );
+    EPD_BITMAP_STATUS drawBitmapSprite(
+        BITMAP_FILTER_IMPLEMENTATION *filter,
+        uint32_t        epd_x,
+        uint32_t        epd_y,
+        uint16_t        sprite_index,
+        SIKTEC_EPD      *epd,
+        bool            reloadDefinition = false 
+    );
 
-
+    /** @brief Draws a bitmap to the given epd object with predefined filters. */
     EPD_BITMAP_STATUS drawBitmap(
         BITMAP_FILTER builtin_filters,
         uint32_t epd_x,
@@ -276,7 +291,7 @@ public:
         bool reloadDefinition = false
     );
     
-    /** @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function. */
+    /** @brief Draws the bitmap on the given EPD while applying a dithering algorithm. */
     EPD_BITMAP_STATUS drawBitmapDithered(
         BITMAP_DITHER_FILTER *filter,
         uint32_t epd_x,
@@ -293,11 +308,11 @@ public:
     bmp_def_t getBitmapDefinition(bool createPalette = false);
 
     #if SIKTEC_EPD_DEBUG_BITMAP
-        /** @brief  */
+        /** @brief prints to serial the parsed bitmap definition struct */
         void debug_bitmapDefinition();
     #endif
     #if SIKTEC_EPD_DEBUG_BITMAP_DITHER
-        /** @brief  */
+        /** @brief  dumps to serial the allocated dithering buffer state */
         void printDitherBuffer(const uint16_t buffer, int16_t *ram_buffer,  SIKTEC_EPD *epd, const uint16_t width);
     #endif
     
@@ -306,6 +321,7 @@ private:
     /** @brief will return all needed values to define how and where to read the bitmap array based on the given coordinates **/
     bmp_read_definition_t prepareBitmapReadDefinition(const uint32_t bmp_sr, const uint32_t bmp_sc, const uint32_t loadWidth, const uint32_t loadHeight);
 
+    /** @brief return a single pixel color directly from the bitmap **/
     colorBits_t getBitmapPixel(const bmp_read_definition_t bitmap_read, const int16_t x, const int16_t y, BITMAP_FILTER_IMPLEMENTATION *filter);
 
     /** @brief Will parse and traverse the pixel array and draw them on the given EPD. */

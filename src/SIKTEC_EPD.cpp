@@ -266,6 +266,16 @@ void SIKTEC_EPD::releaseSramArrayBuffer()  {
     }
 }
 
+/**
+ * @brief get / read an element from the allocated EXTRA sram buffer.
+ * 
+ * @param address - buffer start address
+ * @param index - element index.
+ * @param out - output buffer to write to
+ * @param num - number of elements to sequentially read  
+ * @return bool
+ * 
+ */
 bool SIKTEC_EPD::getSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *out, const uint16_t num)  {
     if (this->use_sram) {
         for (uint16_t i = 0; i < num; ++i)
@@ -275,6 +285,16 @@ bool SIKTEC_EPD::getSramArrayBufferElement(const uint16_t address, const uint16_
     return false;
 }
 
+/**
+ * @brief set / write an element to the allocated EXTRA sram buffer.
+ * 
+ * @param address - buffer start address
+ * @param index - element index.
+ * @param in - input buffer to read from
+ * @param num - number of elements to sequentially write 
+ * @return bool
+ * 
+ */
 bool SIKTEC_EPD::setSramArrayBufferElement(const uint16_t address, const uint16_t index, uint8_t *in, const uint16_t num)  {
     if (this->use_sram) {
         for (uint16_t i = 0; i < num; ++i)
@@ -288,7 +308,6 @@ bool SIKTEC_EPD::setSramArrayBufferElement(const uint16_t address, const uint16_
  * @brief begin communication with EPD and set up the display.
  * 
  * @param reset true for epd harware reset.
- * 
  * @returns void
 */
 void SIKTEC_EPD::begin(bool reset) {
@@ -434,8 +453,7 @@ void SIKTEC_EPD::drawPixel(int16_t x, int16_t y, uint16_t color) {
  * 
  * @param x coordinate
  * @param y coordinate
- * @return true 
- * @return false 
+ * @return bool
  */
 bool SIKTEC_EPD::pixelInBounds(const int16_t x, const int16_t y) {
     return !((x < 0) || (x >= this->width()) || (y < 0) || (y >= this->height()));
@@ -449,7 +467,6 @@ bool SIKTEC_EPD::pixelInBounds(const int16_t x, const int16_t y) {
  * @return uint16_t the offset -> always positive can be 0
  */
 uint16_t SIKTEC_EPD::getPixelAddressOffset(const int16_t x, const int16_t y) {
-    
     return ((uint32_t)(this->fixed8_width - 1 - x) * (uint32_t)this->fixed8_height + y) / 8;
 }
 
@@ -551,9 +568,10 @@ SIKTEC_EPD::pixelValue_t SIKTEC_EPD::getPixel(const int16_t x, const int16_t y) 
  * 
  * @param x coordinate  
  * @param y coordinate 
- * @param SerialPort 
+ * @return void
  */
-void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y, Stream *SerialPort) {
+#ifdef SIKTEC_EPD_DEBUG
+void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y) {
     SIKTEC_EPD::pixelAddress_t pixel = this->getPixelAddress(x, y);
     char pbuf[90];
     if (pixel.inBound) {
@@ -570,6 +588,7 @@ void SIKTEC_EPD::debugPixel(const int16_t x, const int16_t y, Stream *SerialPort
         PRINT_DEBUG_BUFFER("PIXEL[%u,%u]-OUT OF BOUNDS", x, y);
     }
 }
+#endif
 
 /**
  * @brief transfer the data in the buffer to epd ram:

@@ -304,7 +304,9 @@ public:
     bool EPD_isPowered();
 
     //Debugging stuff:
-    void debugPixel(const int16_t x, const int16_t y, Stream *SerialPort = &Serial);
+    #ifdef SIKTEC_EPD_DEBUG
+        void debugPixel(const int16_t x, const int16_t y);
+    #endif
     void _print_debug_byte(uint16_t addr, uint8_t value, bool new_line = false, Stream *SerialPort = &Serial);
     void _display_buffer(uint16_t from_addr, uint8_t cols, int length, Stream *SerialPort = &Serial);
 

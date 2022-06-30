@@ -221,7 +221,7 @@ bool SIKTEC_EPD::is_using_sram() {
  * @brief get additional SRAM available space in Kib (kilo-binary bits)
  * used by filters when additional buffer is required.
  * 
- * @param assumeTotalSizeKib 
+ * @param assumeTotalSizeKib the kib size of the SRAM chip
  * @return epd_sram_space_t free space in Kib and Bytes and address
  */
 epd_sram_space_t SIKTEC_EPD::getFreeSramSpace(uint32_t assumeTotalSizeKib)  {
@@ -906,18 +906,18 @@ void SIKTEC_EPD::clearBuffer() {
 void SIKTEC_EPD::clearDisplay() {
     this->clearBuffer();
     this->display();
-    delay(100);
+    delay(50);
     this->display();
 }
 
 /**
- * @brief Sendst a stream of commands to the epd
+ * @brief Sends a stream of commands to the epd
  *        This is mainly use for sequences make sure its terminated correctly:
  *        EPD_CMD_SEQUENCE_END         -> 0xFE -> End of commandlist
  *        EPD_CMD_SEQUENCE_WAIT        -> 0XFF -> Busy wait
  * @param init_code byte array of commands and data to send:
  * 
- * @returns void
+ * @returns bool
  */
 bool SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
 
@@ -967,7 +967,7 @@ bool SIKTEC_EPD::EPD_commandList(const uint8_t *init_code) {
 }
 
 /**
- * @brief 
+ * @brief Send a command to the EPD driver
  * 
  * @param c    the command byte to send
  * @param buf  the buffer of data to send after the command:
@@ -1010,7 +1010,7 @@ void SIKTEC_EPD::EPD_command(uint8_t c) {
 }
 
 /**
- * @brief send an EPD command with and get the replied byte
+ * @brief send an EPD command and get the replied byte
  * 
  * @param cmd the command byte to send
  * 
@@ -1023,7 +1023,7 @@ uint8_t SIKTEC_EPD::EPD_command_with_read(uint8_t cmd) {
 }
 
 /**
- * @brief send an EPD command with and get the replied byte
+ * @brief send an EPD command and get the replied bytes
  * 
  * @param cmd the command byte to send
  * @param buf output buffer
@@ -1098,7 +1098,7 @@ void SIKTEC_EPD::EPD_dc_mode(uint8_t mode) {
 }
 
 /**
- * @brief checks if the Epd is powered - that only checking for a flag 
+ * @brief checks if the EPD is powered - its only checking for an internal flag 
  *        that means a boolean is toggled every time power methods are called.
  * 
  * @returns true - is powered
@@ -1141,41 +1141,40 @@ void SIKTEC_EPD::_display_buffer(uint16_t from_addr, uint8_t cols, int length, S
     }
 }
 
-
 #if SIKTEC_EPD_DEBUG
-    /**
-     * @brief Scans the SRAM chip to try and calculate the total RAM size
-     *        Will work only with SEQUENTIAL MODE.
-     *        Currently wil handle up to 512 Kib scanning
-     *        > this is extremely costly so use only for debugging with care
-     * @param print print result or not
-     * @param SerialPort the Stream interface to use for printing
-     * @return uint32_t total addressable bytes
-     */
-    uint32_t SIKTEC_EPD::analyzeSRAMsize(const bool print, Stream *SerialPort) {
-        uint8_t signature[] = { 9, 9, 9, 8, 8, 8, 100, 100 };
-        uint8_t seen[8]    = { 0 };
-        uint32_t signa_len = sizeof(signature) / sizeof(signature[0]);
-        uint32_t actual_size;
-        bool found = false;
-        this->sram->write(0x0, signature, signa_len);
-        for (int i = signa_len; i < 65535; i += signa_len) {
-            this->sram->read(i, seen, signa_len);
-            actual_size = i;
-            if (memcmp(signature, seen, signa_len) == 0) {
-                found = true;
-                break;
-            }
+/**
+ * @brief Scans the SRAM chip to try and calculate the total RAM size
+ *        Will work only with SEQUENTIAL MODE.
+ *        Currently wil handle up to 512 Kib scanning
+ *        > this is extremely costly so use only for debugging with care
+ * @param print print result or not
+ * @param SerialPort the Stream interface to use for printing
+ * @return uint32_t total addressable bytes
+ */
+uint32_t SIKTEC_EPD::analyzeSRAMsize(const bool print, Stream *SerialPort) {
+    uint8_t signature[] = { 9, 9, 9, 8, 8, 8, 100, 100 };
+    uint8_t seen[8]    = { 0 };
+    uint32_t signa_len = sizeof(signature) / sizeof(signature[0]);
+    uint32_t actual_size;
+    bool found = false;
+    this->sram->write(0x0, signature, signa_len);
+    for (int i = signa_len; i < 65535; i += signa_len) {
+        this->sram->read(i, seen, signa_len);
+        actual_size = i;
+        if (memcmp(signature, seen, signa_len) == 0) {
+            found = true;
+            break;
         }
-        if (print) {
-            SerialPort->print("SRAM SIZE: ");
-            if (found) 
-                SerialPort->println(actual_size);
-            else
-                SerialPort->println("UNKNOWN");
-        }
-        return actual_size;
     }
+    if (print) {
+        SerialPort->print("SRAM SIZE: ");
+        if (found) 
+            SerialPort->println(actual_size);
+        else
+            SerialPort->println("UNKNOWN");
+    }
+    return actual_size;
+}
 #endif
 
 }

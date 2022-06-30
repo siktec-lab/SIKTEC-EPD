@@ -153,40 +153,84 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapSprite(
 ) {
     uint16_t     row  = sprite_index / this->sprite.columns;
     uint16_t     col  =  sprite_index - (row * this->sprite.columns);
-    // return this->drawBitmapFiltered(
-    //     filter,
-    //     epd_x, epd_y, 
-    //     epd,
-    //     col * this->sprite.width,
-    //     row * this->sprite.height,
-    //     this->sprite.width,
-    //     this->sprite.height,
-    //     reloadDefinition
-    // );
-    return EPD_BITMAP_STATUS::DONE;
+    return this->drawBitmap(
+        filter,
+        epd_x, epd_y, 
+        epd,
+        col * this->sprite.width,
+        row * this->sprite.height,
+        this->sprite.width,
+        this->sprite.height,
+        reloadDefinition
+    );
 }
 
+/**
+ * @brief Draws the bitmap sprite index on the given EPD using a predefined filter / color kernel.
+ * 
+ * @param filter        BITMAP_FILTER_IMPLEMENTATION - the filter object pointer.
+ * @param epd_x         uint32_t the top-left X position on the EPD.
+ * @param epd_y         uint32_t the top-left Y position on the EPD.
+ * @param sprite_index  uint16_t the index of the sprite position.
+ * @param epd           SIKTEC_EPD * the pointer to the epd to draw on.
+ * @param reloadDefinition bool default False - whether to reload definition or not.
+ * @return EPD_BITMAP_STATUS - consider DONE as successfull.
+ */
+EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapSprite(
+    BITMAP_FILTER_IMPLEMENTATION *filter,
+    uint32_t        epd_x,
+    uint32_t        epd_y,
+    uint16_t        sprite_index,
+    SIKTEC_EPD      *epd,
+    bool            reloadDefinition
+) {
+    uint16_t     row  = sprite_index / this->sprite.columns;
+    uint16_t     col  =  sprite_index - (row * this->sprite.columns);
+    return this->drawBitmap(
+        filter,
+        epd_x, epd_y, 
+        epd,
+        col * this->sprite.width,
+        row * this->sprite.height,
+        this->sprite.width,
+        this->sprite.height,
+        reloadDefinition
+    );
+}
 
-
+/**
+ * @brief draws a bitmap directly to the epd applying a filter.
+ * 
+ * @param builtin_filters   - the builtin filter to apply - BITMAP_FILTER enum.
+ * @param epd_x             - uint32_t the top-left X position on the EPD.
+ * @param epd_y             - uint32_t the top-left Y position on the EPD.
+ * @param epd               - SIKTEC_EPD * the pointer to the epd to draw on.
+ * @param bmp_sc            - bitmap start column (from left)
+ * @param bmp_sr            - bitmap start row (from top)
+ * @param bmp_cw            - bitmap width to draw  - 0 for full width.
+ * @param bmp_ch            - bitmap height to draw  - 0 for full height.
+ * @param reloadDefinition  - bool default False - whether to reload definition or not.
+ * @return EPD_BITMAP_STATUS - consider DONE as successfull.
+ */
 EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
     BITMAP_FILTER   builtin_filters,
-    uint32_t epd_x,
-    uint32_t epd_y,
-    SIKTEC_EPD *epd,
-    uint32_t bmp_sc, // start column
-    uint32_t bmp_sr, // start row
-    uint32_t bmp_cw, // clip width 0 means fullwidth
-    uint32_t bmp_ch, // clip height 0 means fullheight 
-    bool reloadDefinition
+    uint32_t        epd_x,
+    uint32_t        epd_y,
+    SIKTEC_EPD      *epd,
+    uint32_t        bmp_sc, // start column
+    uint32_t        bmp_sr, // start row
+    uint32_t        bmp_cw, // clip width 0 means fullwidth
+    uint32_t        bmp_ch, // clip height 0 means fullheight 
+    bool            reloadDefinition
 ) {
 
-    //If we want a dither filter:
+    //If we want a dither filter BW:
     if (builtin_filters == BITMAP_FILTER::DITHER_BW) {
         BitmapFilter_DITHER_BW DITHERBW_filter(EPD_BLACK, EPD_WHITE, 1.15);
         return this->drawBitmapDithered(&DITHERBW_filter, epd_x, epd_y, epd, bmp_sc, bmp_sr, bmp_cw, bmp_ch, reloadDefinition);
     }
 
-    //If we want a dither filter:
+    //If we want a dither filter GRAY4:
     if (builtin_filters == BITMAP_FILTER::DITHER_GRAY4) {
         #ifdef BITMAP_COLOR_RESULT_888 
         uint16_t colormap_dither[5][4] = { // Use grey levels 0 - 255
@@ -266,7 +310,10 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
         reloadDefinition
     );
 
+    //Delete the filter....
     delete filter;
+
+    //Return
     return result;
 }
 
@@ -274,16 +321,16 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
 /**
  * @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function.
  * 
- * @param filter    BITMAP_FILTER_IMPLEMENTATION - the filter function pointer.
+ * @param filter    BITMAP_FILTER_IMPLEMENTATION - the filter object pointer.
  * @param epd_x     uint32_t the top-left X position on the EPD.
  * @param epd_y     uint32_t the top-left Y position on the EPD.
  * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
- * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
- * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
+ * @param bmp_sc    uint32_t the bitmap starting point X / Column (From Left).
+ * @param bmp_sr    uint32_t the bitmap starting point Y / Row (From Top).
  * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
  * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
  * @param reloadDefinition bool default False - whether to reload definition or not.
- * @return EPD_BITMAP_STATUS 
+ * @return EPD_BITMAP_STATUS  - consider DONE as successfull.
  */
 EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
     BITMAP_FILTER_IMPLEMENTATION *filter,
@@ -371,18 +418,18 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmap(
 }
 
 /**
- * @brief Draws the bitmap on the given EPD using a custom color kernel (filter) function.
+ * @brief Draws the bitmap on the given EPD using a dithering filter.
  * 
- * @param filter    BITMAP_FILTER_IMPLEMENTATION - the filter function pointer.
+ * @param filter    BITMAP_DITHER_FILTER - the dither filter object pointer.
  * @param epd_x     uint32_t the top-left X position on the EPD.
  * @param epd_y     uint32_t the top-left Y position on the EPD.
  * @param epd       SIKTEC_EPD * the pointer to the epd to draw on.
- * @param bmp_sc    uint32_t the bitmap Startin point X / Column (Top-Left).
- * @param bmp_sr    uint32_t the bitmap Startin point Y / Row (Top-Left).
+ * @param bmp_sc    uint32_t the bitmap starting point X / Column (From Left).
+ * @param bmp_sr    uint32_t the bitmap starting point Y / Row (From Top).
  * @param bmp_cw    uint32_t The width to draw (clip width) - 0 for full width.
  * @param bmp_ch    uint32_t The width to draw (clip height) - 0 for full height.
  * @param reloadDefinition bool default False - whether to reload definition or not.
- * @return EPD_BITMAP_STATUS 
+ * @return EPD_BITMAP_STATUS   - consider DONE as successfull.
  */
 EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapDithered(
     BITMAP_DITHER_FILTER *filter,
@@ -396,7 +443,7 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapDithered(
     bool reloadDefinition
 ) {
 
-       //Reload the header? only if changes could have been done....
+    //Reload the header? only if changes could have been done....
     if (reloadDefinition) {
         this->definition = this->getBitmapDefinition(true);
     }
@@ -475,7 +522,6 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapDithered(
 
     //fill buffer:
     int16_t     bmpColorPixel;
-    int16_t     greyPixel;
     uint8_t     color_buf[2];
     for (uint16_t row = 0; row < 2; ++row) {
         for (uint16_t col = 0; col < loadWidth; ++col) {
@@ -553,6 +599,8 @@ EPD_BITMAP_STATUS SIKTEC_EPD_BITMAP::drawBitmapDithered(
             } else {
                 dither_kernel[4] = 0;
             }
+
+            //Dither the pixels - distributes the error:
             filter->dither(dither_kernel);
             
             //save it back to buffer:
@@ -792,6 +840,15 @@ BMP_VARIANT SIKTEC_EPD_BITMAP::bitmapVariant() {
     }
 }
 
+/**
+ * @brief returns struct with all needed values for reading a bitmap at a specific region
+ * 
+ * @param bmp_sr        - uint32_t the bitmap starting point Y / Row (From Top).
+ * @param bmp_sc        - uint32_t the bitmap starting point X / Col (From Left).
+ * @param loadWidth     - uint32_t The width to draw
+ * @param loadHeight    - uint32_t The height to draw
+ * @return bmp_read_definition_t 
+ */
 bmp_read_definition_t SIKTEC_EPD_BITMAP::prepareBitmapReadDefinition(const uint32_t bmp_sr, const uint32_t bmp_sc, const uint32_t loadWidth, const uint32_t loadHeight) {
 
     bmp_read_definition_t bmp_read;
@@ -839,13 +896,21 @@ bmp_read_definition_t SIKTEC_EPD_BITMAP::prepareBitmapReadDefinition(const uint3
     return bmp_read;
 }
 
+/**
+ * @brief returns a single pixel color directly from the bitmap
+ * 
+ * @param bitmap_read - The read operation definition
+ * @param x           - The requested x - column (from left)
+ * @param y           - The requested y - row (from top)
+ * @param filter      - apply a filter to the pixel. 
+ * @return colorBits_t - pixel color bitfield
+ */
 colorBits_t SIKTEC_EPD_BITMAP::getBitmapPixel(const bmp_read_definition_t bitmap_read, const int16_t x, const int16_t y, BITMAP_FILTER_IMPLEMENTATION *filter) {
 
     uint32_t pixels = 0; //read buffer
-    uint32_t row = bitmap_read.start_row + y; // we flip it as the bitmap direction is flipped
+    uint32_t row = bitmap_read.start_row + y;
     uint32_t col = bitmap_read.start_col + x;
     uint32_t address = bitmap_read.start_row_address + y * bitmap_read.row_bit_size;
-
 
     //Point file to pixel array at start of row:
     if (this->definition.info_header.bpp == 1) {
@@ -887,8 +952,8 @@ colorBits_t SIKTEC_EPD_BITMAP::getBitmapPixel(const bmp_read_definition_t bitmap
  * 
  * @param epd_x         uint32_t the top-left X position on the EPD.
  * @param epd_y         uint32_t the top-left Y position on the EPD.
- * @param bmp_r         uint32_t the bitmap Startin point Y / Row (Top-Left).
- * @param bmp_c         uint32_t the bitmap Startin point X / Column (Top-Left).
+ * @param bmp_r         uint32_t the bitmap Startin point Y / Row (From top).
+ * @param bmp_c         uint32_t the bitmap Startin point X / Column (From Left).
  * @param loadWidth     uint32_t The width to draw (clip width) - 0 for full width.
  * @param loadHeight    uint32_t The width to draw (clip height) - 0 for full height.
  * @param epd           SIKTEC_EPD * the pointer to the epd to draw on.
@@ -903,7 +968,6 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
 ) {
 
     //We assume file is open -> this can be called only from draw which handles the file before.
-
     int16_t epd_col      = (int16_t)epd_x;
     int16_t epd_row      = (int16_t)epd_y + bitmap_read.read_height - 1;
     uint32_t pixels      = 0; //read buffer
@@ -997,7 +1061,7 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
             }
         }
         
-        //FUTURE: handle flipped array orders TOP to BOTTOM....
+        //FUTURE: handle flipped pixel array TOP to BOTTOM....
         //Next epd row for drawing:
         epd_row--; 
         epd_col = (int16_t)epd_x;
@@ -1010,9 +1074,9 @@ void SIKTEC_EPD_BITMAP::proccessUncompressed(
 /**
  * @brief Will apply the Filter / Kernel to a parsed pixel and return the color format to use.
  * 
- * @param rgb565 - uint16_t a 565 16bit color format pixel.
- * @param kernel translate_color - the kernel function pointer.
- * @return colorBits_t 
+ * @param rgb565        - uint16_t a 565 16bit color format pixel.
+ * @param filter        - the filter to apply.
+ * @return colorBits_t  - pixel color bitfield
  */
 colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, BITMAP_FILTER_IMPLEMENTATION *filter) {
     if (bitmap_color_result == BITMAP_COLOR_MODE::COLOR565) {
@@ -1032,9 +1096,9 @@ colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint16_t rgb565, BITMAP_FILTER
 /**
  * @brief Will apply the Filter / Kernel to a parsed pixel and return the color format to use.
  * 
- * @param rgb888 - uint32_t a RGB888 color format pixel.
- * @param kernel translate_color - the kernel function pointer.
- * @return colorBits_t 
+ * @param rgb888        - uint32_t a RGB888 color format pixel.
+ * @param filter        - the filter to apply.
+ * @return colorBits_t - pixel color bitfield
  */
 colorBits_t SIKTEC_EPD_BITMAP::pixelColorProccess(uint32_t rgb888, BITMAP_FILTER_IMPLEMENTATION *filter) {
     if (bitmap_color_result == BITMAP_COLOR_MODE::COLOR888) {

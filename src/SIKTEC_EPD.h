@@ -78,6 +78,7 @@
 #define EPD_CMD_SEQUENCE_WAIT       0xFF
 #define EPD_CMD_SEQUENCE_END        0xFE
 
+//NOTE: onboard SRAM is rated 20Mhz AND EPD Drivers 20Mhz also - That said 20Mhz is not reliable best is 18 - 19. 
 #if defined(ESP32) || defined(ARDUINO_AVR_MEGA) || defined(AVR_MEGA2560) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(ARDUINO_SAM_DUE) || defined(SAM3X8E)
     // #define EPD_SRAM_SPEED              4000000L
     // #define EPD_SRAM_SPEED              8000000L
@@ -124,6 +125,9 @@ typedef enum {
     b = t;               \
   }
 
+/**
+ * @brief required pins struct.
+*/
 typedef struct EPD_Pins {
     int8_t epd_cs;
     int8_t sram_cs;
@@ -132,6 +136,9 @@ typedef struct EPD_Pins {
     int8_t busy;
 } epd_pins_t;
 
+/**
+ * @brief available SRAM space return struct.
+*/
 typedef struct EPD_SRAM_Space {
     uint32_t    kbit;
     uint32_t    bytes;
@@ -182,6 +189,7 @@ public:
     // SRAM Related:
     //------------------------------------------------------------------------//
 private:
+
     uint16_t ram_buffer_element_size = 1;
 
 public:

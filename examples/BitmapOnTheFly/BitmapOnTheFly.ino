@@ -11,15 +11,15 @@
  * 
  *  * FOR THIS EXAMPLE TO WORK:
  *      1. uncomment the correct EPD module you are using.
- *      2. copy images (p_example12.bmp) to an SD card and plug it in. 
+ *      2. copy images (p_example11.bmp) to an SD card and plug it in. 
 *******************************************************************************/
 
 /**********************************************************************************************/
 // Select your board:
 /**********************************************************************************************/
-#define SIKTEC_BOARD_G4
+// #define SIKTEC_BOARD_G4
 // #define SIKTEC_BOARD_3CU
-// #define SIKTEC_BOARD_3CS
+#define SIKTEC_BOARD_3CS
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -83,7 +83,7 @@ epd_pins_t epd_pins = EPD_PINS;
 //The sd card:
 SdFat sd_card;
 FatFile file;
-const char filename[] = "p_example12.bmp";
+const char filename[] = "p_example11.bmp";
 
 //The EPD Board Driver:
 #if defined(SIKTEC_BOARD_G4) 

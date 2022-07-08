@@ -1,7 +1,7 @@
 
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.3
+// Release Version : 1.0.4
 // Creation Date: 2022-03-31
 // Copyright 2022, SIKTEC.
 /******************************************************************************/
@@ -94,7 +94,7 @@ SIKTEC_EPD::SIKTEC_EPD(
     this->_spi = new SIKTEC_SPI(
         this->pins.epd_cs, spi_clock, spi_miso, spi_mosi, 
         clock_frequency,        // frequency
-        SPI_BITORDER_MSBFIRST,  // bit order
+        SIKSPI_BitOrder::SIKSPI_BITORDER_MSBFIRST,  // bit order
         SPI_MODE0               // data modespi;
     );
                             
@@ -171,7 +171,7 @@ SIKTEC_EPD::SIKTEC_EPD(int width, int height, const epd_pins_t &pins, SPIClass *
     this->_spi = new SIKTEC_SPI(
         this->pins.epd_cs,      // EPD cs
         clock_frequency,         // frequency
-        SPI_BITORDER_MSBFIRST,  // bit order
+        SIKSPI_BitOrder::SIKSPI_BITORDER_MSBFIRST,  // bit order
         SPI_MODE0,              // data modespi;
         spi
     );
@@ -903,11 +903,11 @@ void SIKTEC_EPD::clearBuffer() {
  * 
  * @returns void
 */
-void SIKTEC_EPD::clearDisplay() {
+void SIKTEC_EPD::clearDisplay(bool sleep) {
     this->clearBuffer();
-    this->display();
+    this->display(false);
     delay(50);
-    this->display();
+    this->display(sleep);
 }
 
 /**

@@ -1,6 +1,6 @@
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.3
+// Release Version : 1.0.4
 // Creation Date: 2022-04-12
 // Copyright 2022, SIKTEC.
 // 
@@ -29,6 +29,13 @@
     -> Fixed Arduino DUE specific problems.
     -> Added pixel debug methods. 
     -> MONO, TRICOLOR, 4GRAY Modes support.
+1.0.3:
+    -> Fixed Minor bugs.
+    -> Improved filters performance.
+    -> Better examples.
+1.0.4:
+    -> Add sleep boolean to clearDisply.
+    -> Updated to match the latest changes in SIKTEC-SPI ver 1.0.2
 *******************************************************************************/
 
 /**  @file SIKTEC_EPD.h */
@@ -286,7 +293,7 @@ public:
     pixelValue_t getPixel(const int16_t x, const int16_t y);
     void drawPixel(int16_t x, int16_t y, uint16_t color); ///< Draw a pixel on the screen.
     void clearBuffer(); ///< Clear drawing buffer.
-    void clearDisplay(); ///< Clear the EPD screen. 
+    void clearDisplay(bool sleep = false); ///< Clear the EPD screen. 
     void setBlackBuffer(int8_t index, bool inverted);
     void setColorBuffer(int8_t index, bool inverted);
     void display(bool sleep = false);

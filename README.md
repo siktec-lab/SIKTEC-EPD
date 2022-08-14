@@ -1,14 +1,17 @@
 # SIKTEC-EPD
- ePaper / eInk display driver to easily integrate SIKTEC EPD displays.<br />
+ ePaper / eInk display driver to easily program and use SIKTEC EPD display modules in embedded projects.<br />
  Adafruit GFX compatible with optional external SRAM use.
+ You can find the display module here:<br />
+ [4.2 inch E-Paper w SRAM, MicroSD & MD Switch](https://www.tindie.com/products/siktec/42-inch-e-paper-w-sram-microsd-md-switch/)
+ <img src="https://github.com/siktec-lab/assets/blob/master/prod-epd/e4.jpg?raw=true" width="800px"/>
 
 <br/>
 
 ## Description
 This library seamlessly integrates Epaper displays with SRAM support and exposes GFX drawing functions. <br />
-Its mainly for using SIKTEC display boards and that features several different EPD drivers which are all included in this library. <br />
+Its mainly for using SIKTEC display modules which features several different EPD drivers that are all supported by this library. <br />
 The library is designed to be simple yet very flexible and can be used for any board that is driven by one of the implemented drivers.<br />
-We have included a robust Bitmap library - It supports any (uncompressed) Bitmap which is directly drawn on the EPD. You don't need to prep your bitmaps, the library works with any resolution and does the translation on the fly.
+We have included a robust Bitmap library - It supports any (uncompressed) Bitmap and enables you to directly draw an image on the EPD. You don't need to prep your bitmaps, the library works with any resolution and does the translation on the fly.
 <br />
 
 <a id="drivers-epd"></a>
@@ -64,9 +67,9 @@ We have included a robust Bitmap library - It supports any (uncompressed) Bitmap
 
 [ :arrow_up_small: Return](#table-contents)
 
-You can install the library through one of the following:
-1. Arduino or PlatformIO library manager: Search for "SIKTEC_EPD" and click install.
-2. Download the repositories as a ZIP file and install it through the Arduino IDE by:<br/>
+You can install the library through <ins>one</ins> of the following:
+1. **Arduino or PlatformIO library manager**: Search for "SIKTEC_EPD" and click install.
+2. **Download** the repository as a **ZIP** file and install it through the Arduino IDE by:<br/>
    `Sketch -> Include library -> Add .ZIP Library.`
 3. Download the library and include it in your project folder - Then you can Include it directly:<br/>
     `#include "{path to}\SIKTEC_EPD.h"`
@@ -86,12 +89,14 @@ You can install the library through one of the following:
 - **EPDHelloWorld.ino** - An example which can be compiled with or without SRAM - Will demonstrate printing text to the EPD, Drawing a color pallet, Drawing some cool circles. The code is well commented so feel free to go through the source code.
 > :pushpin: To disable the SRAM Set the pin as -1 
 
-- **BitmapSD.ino** - An example which draws example bitmaps of different types on the EDP, The example expects an SD-Card connected with some Bitmaps in the root folder - You can use the example Bitmaps in the folder `extras/test_images`.
+- **BitmapSD.ino** - An example which draws the example bitmaps of different types on the EDP, The example expects an SD-Card connected with some Bitmaps in the root folder - You can use the example Bitmaps included in the folder `extras/test_images`.
 
 - **BitmapSprite.ino** - An example which draws a "Sprite like" Bitmap tiled on the EPD screen - Very powerfull feature that allows you to pack all the graphics into one bitmap - You can use the example Bitmaps in the folder `extras/sprites`.
 
-- **DebugRun.ino** - This Simple sketch is used to test EPD's - for a better HelloWorld
-example load EPDHelloWorld.ino. In this example we are testing more advanced SRAM use cases that can be used later For advanced features implementation of the EPD.
+- **BitmapDither.ino** - An example that demonstrate how to dither an image before drawing the images - dithering is done in real time in the most efficient way so this should run on any micro controller.
+
+- **BitmapFiltersNDither.ino** - The library api has some powerfull builting filters which allows you to process the images in real time - you can also create your own filters and proccessing methods .
+
 <br/>
 
 <a id="understandig-ioref"></a>
@@ -100,26 +105,26 @@ example load EPDHelloWorld.ino. In this example we are testing more advanced SRA
 
 [:arrow_up_small: Return](#table-contents)
 
-Genuine SIKTEC-EPD Boards has an "IOREF" pin. This pin is used to determine the required IO logic Voltage level of the connected MCU. For AVR boards simply connect their own IOREF pin - If there 
-Is no IOREF pin connect to 3.3 or 5V according to the MCU IO voltage.<br />
-Internally the EPD Board is 3.3V Logic - and has a logic level shifter so It can tollerate a wide range of input voltage.<br />
+Genuine SIKTEC-EPD modules has an "IOREF" pin. This pin is used to determine the required IO logic Voltage level of the connected MCU. For AVR boards simply connect their own IOREF pin - If there 
+is no IOREF pin connect to 3.3 or 5V according to the required host MCU IO voltage specs.<br />
+Internally the EPD module is 3.3V Logic. The module and has a logic level shifter so it can tollerate a wide range of input voltage.<br />
 > :pushpin: For best performance and stability supply 5V (vin) to the EPD board Regardless of the IOREF voltage. 
 
 <br />
 
 <a id="declaring-epd"></a>
 
-## Declaring of 'SIKTEC_EPD' object:
+## Initiating the 'SIKTEC_EPD' object:
 
 [:arrow_up_small: Return](#table-contents)
 
-Call `SIKTEC_EPD_G4 | SIKTEC_EPD_3CS | SIKTEC_EPD_3CU` with al required pins - *SpiClass is optional and if its omitted Default Arduino SPI Instance will be used.<br />
+Call `SIKTEC_EPD_G4 | SIKTEC_EPD_3CS | SIKTEC_EPD_3CU` with all required pins - *SpiClass is optional and if its omitted Default Arduino SPI Instance will be used.<br />
 After creating the `SIKTEC_EPD` instance the `begin()` method should be called to start EPD communication and setting the COLOR mode.
 
 ```cpp
 
-#include <Adafruit_I2CDevice.h> // Only required when compiling with platformio
-#include <Adafruit_GFX.h>       // Only required when compiling with platformio
+#include <Adafruit_I2CDevice.h> // Only required when compiling using platformio
+#include <Adafruit_GFX.h>       // Only required when compiling using platformio
 #include <SIKTEC_EPD.h>
 
 ...
@@ -150,7 +155,7 @@ void setup() {
 ```
 > :pushpin: SIKTEC_EPD wraps all required functionality - SRAM communication, EPD communication, GFX drawing.<br />
 > :pushpin: When declaring pin EPD_BUSY as -1, the display will wait a fix amount of time ~13 seconds. So its a good practice to dedicate a pin for the busy signal.<br />
-> :pushpin: When declaring pin EPD_RESET as -1, The EPD won't be put fully to sleep (It can't be awaken without HW reset). While Thats possible <u>it's not recommended :exclamation:</u> It may cause spooky shadow images and damage the display. 
+> :pushpin: When declaring pin EPD_RESET as -1, The EPD won't be put fully to sleep (It can't be awaken without HW reset). While it's possible, <u>it's not recommended :exclamation:</u> It may cause spooky shadow images and damage the module display. 
 
 <br/>
 
@@ -163,7 +168,7 @@ void setup() {
 There are 5 main methods used to control the EPD. Each one can be called several time and can be used anywhere except from withinn an ISR function (Interrupts).<br />
 
 **`.begin(epd_mode_t mode = EPD_MODE_MONO)`** This method starts the communication with the EPD and should be called at least once after initialization before doing anything with the EPD.<br />
-There are several color modes - You can check the [table](#drivers-epd) above to see the matching color modes for your display driver.
+There are several color modes - You can check the [table](#drivers-epd) above to choose the correct color mode for your display module.
 
 ```cpp
 ...
@@ -195,7 +200,7 @@ board->clearBuffer();
 
 <br />
 
-**`.clearDisplay()`** This method clears the display - Basically a `clearBuffer` + `display`.
+**`.clearDisplay(bool sleep = false)`** This method clears the display - Basically a `clearBuffer` + `display`.
 
 ```cpp
 ...
@@ -303,8 +308,8 @@ This method is used by all of the GFX library drawing functions. - It can be cal
 
 [:arrow_up_small: Return](#table-contents)
 
-The `display(bool sleep)` method is used to transffer the buffered pixels to th EPD and disply the on the scree - passing true will powerdown the display when finished and put it in sleep mode. </br>
-The display is powered on if its need when this method is called,
+The `display(bool sleep)` method is used to transfer the buffered pixels to the EPD internal screen buffer and draw on the screen - Passing `true` will powerdown the display when finished and put it in sleep mode. </br>
+The display is automatically powered on if its need when this method is called.
 
 ```cpp
     ...
@@ -326,8 +331,7 @@ The display is powered on if its need when this method is called,
 
 [:arrow_up_small: Return](#table-contents)
 
-The library used X defined Flags that enables debugging of various parts. They should be defined BEFORE the library include or even better as Compilation flags.<br />
-The default Serial monitor will print all the captured data and events.
+The library uses several defined Flags that enables debugging of various parts. They should be defined BEFORE the library include or even better as Compilation flags.<br />
 
 ```TOML
     ...
@@ -335,10 +339,13 @@ The default Serial monitor will print all the captured data and events.
 ; All defaults to 0
 build_flags = 
 	 -D SIKTEC_EPD_DEBUG=0                  ; enables debug features - Is mandatory for any below
-	 -D SIKTEC_EPD_DEBUG_COMMAND_LISTS=0    ; prints init sequence and lut commands
-	 -D SIKTEC_EPD_DEBUG_BITMAP=0           ; enables bitmap parsing debug features 
+     -D SIKTEC_EPD_DEBUG_SRAM=0             ; enables sram debugging output.
+     -D SIKTEC_EPD_DEBUG_PIXELS=0           ; enables drawing pixels debugging output.
+	 -D SIKTEC_EPD_DEBUG_COMMAND_LISTS=0    ; prints init sequences and lut commands
+	 -D SIKTEC_EPD_DEBUG_BITMAP=0           ; enables bitmap parsing debug output 
 	 -D SIKTEC_EPD_DEBUG_BITMAP_PIXELS=0    ; enables bitmap pixel scanning debug (use with small bitmaps) 
 	 -D SIKTEC_EPD_DEBUG_BITMAP_KERNELS_PIXELS=0 ; enables bitmap pixel translation debug (use with small bitmaps) 
+     -D SIKTEC_EPD_DEBUG_BITMAP_DITHER=0    ; enables debugging of dithering procedures - dither buffer is printed.
 	 -D BITMAP_COLOR_RESULT_888=0           ; set color mode to 888 - the lib internally use 565 colors.
     ...
 ```

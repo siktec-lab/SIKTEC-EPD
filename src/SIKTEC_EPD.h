@@ -1,6 +1,6 @@
 /******************************************************************************/
 // Created by: SIKTEC.
-// Release Version : 1.0.4
+// Release Version : 1.0.5
 // Creation Date: 2022-04-12
 // Copyright 2022, SIKTEC.
 // 
@@ -36,6 +36,8 @@
 1.0.4:
     -> Add sleep boolean to clearDisply.
     -> Updated to match the latest changes in SIKTEC-SPI ver 1.0.2
+1.0.5
+    -> Performance improvement and reliability
 *******************************************************************************/
 
 /**  @file SIKTEC_EPD.h */

@@ -85,6 +85,25 @@ static const uint8_t ssd1619_default_init_code[] {
     EPD_CMD_SEQUENCE_END
 };
 
+static const uint8_t ssd1619_default_init_code_improved[] {
+    SSD1619_SW_RESET,           0,                  // soft reset
+    EPD_CMD_SEQUENCE_WAIT,      20,                 // busy wait
+    SSD1619_SET_ANALOGBLOCK,    1,      0x54,       // set analog block control
+    SSD1619_SET_DIGITALBLOCK,   1,      0x3B,       // set digital block control
+
+    0x2B, 2, 0x04, 0x63, // Reduce glitch under ACVCOM  
+    SSD1619_BOOST_SOFTSTART,    4,  0x8B, 0x9C, 0x96, 0x0F, // Soft start setting
+
+    SSD1619_DRIVER_CONTROL,     3,      0x2B, 0x01, 0x00, // Set MUX as 300
+    SSD1619_DATA_MODE,          1,      0x03,       // Ram data entry mode
+    SSD1619_WRITE_BORDER,       1,      0x01,       // border color
+    SSD1619_TEMP_CONTROL,       1,      0x80,       // Temp control
+    SSD1619_DISP_CTRL2,         1,      0xB1,
+    SSD1619_MASTER_ACTIVATE,    0,
+    EPD_CMD_SEQUENCE_WAIT,      20,                 // busy wait
+    EPD_CMD_SEQUENCE_END
+};
+
 //------------------------------------------------------------------------//
 // LOOK UP TABLES:
 //------------------------------------------------------------------------//

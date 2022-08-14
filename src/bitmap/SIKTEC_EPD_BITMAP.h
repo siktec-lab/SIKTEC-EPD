@@ -30,7 +30,7 @@
 Future:
     -> //TODO: implement reversed array bitmaps.
     -> //TODO: implement dithering with 1 - 8 bpp bitmaps.
-    -> //TODO: create bitmap procedure. 
+    -> //TODO: create bitmap export procedure. 
 *******************************************************************************/
 
 

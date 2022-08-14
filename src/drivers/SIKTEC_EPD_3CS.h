@@ -241,7 +241,7 @@ public:
         this->busy_wait();
 
         //Use this init sequence:
-        const uint8_t *init_code = ssd1619_default_init_code;
+        const uint8_t *init_code = ssd1619_default_init_code_improved;
         if (this->_epd_init_code != NULL) {
             init_code = this->_epd_init_code;
         }

@@ -33,9 +33,9 @@
 /**********************************************************************************************/
 // Select your board:
 /**********************************************************************************************/
-// #define SIKTEC_BOARD_G4
+#define SIKTEC_BOARD_G4
 // #define SIKTEC_BOARD_3CU
-#define SIKTEC_BOARD_3CS
+// #define SIKTEC_BOARD_3CS
 
 /**********************************************************************************************/
 // LIB INCLUDES:
@@ -161,6 +161,7 @@ void setup() {
     }
 
     //Parse the Bitmap:
+    Serial.println("Proccessing and drawing bitmap ...");
     SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, filename);
     if (bitmap.isValid()) {
         unsigned long start = millis();

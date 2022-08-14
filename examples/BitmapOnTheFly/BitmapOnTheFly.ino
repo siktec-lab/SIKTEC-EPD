@@ -142,6 +142,7 @@ void setup() {
     
 
     //Parse the Bitmap:
+    Serial.println("Proccessing and drawing bitmap ...");
     SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, filename);
 
     //Check its loaded and supported:

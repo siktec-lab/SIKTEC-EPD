@@ -158,6 +158,9 @@ void setup() {
                 strcmp(bitmap_ext, &filename[strlen(filename)-strlen(bitmap_ext)]) == 0
             ) {
 
+                Serial.print("Proccessing and drawing bitmap : ");
+                Serial.println(filename);
+
                 //Parse the Bitmap:
                 SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, file);
 

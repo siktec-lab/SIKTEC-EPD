@@ -169,6 +169,9 @@ void loop() {
     Serial.println(images_count);
     for (uint8_t i = 0; i < images_count; ++i) {
         
+        Serial.print("Proccessing and drawing bitmap : ");
+        Serial.println(filenames[i]);
+
         //Parse the Bitmap:
         SIKTEC_EPD_BITMAP bitmap = SIKTEC_EPD_BITMAP(&sd_card, filenames[i]);
 
